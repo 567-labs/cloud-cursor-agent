@@ -1,0 +1,429 @@
+#!/usr/bin/env node
+
+/**
+ * Cloud Agents CLI
+ * Main entry point for the cloud-agent command
+ */
+
+import React from "react";
+import { render } from "ink";
+import { CloudAgentsApiClient, ApiError } from "./src/api/client.js";
+import { AgentList } from "./src/components/AgentList.js";
+import { AgentStatus } from "./src/components/AgentStatus.js";
+import { App } from "./src/components/App.js";
+import { detectRepoAndRef } from "./src/utils/git.js";
+import { readPlanFile } from "./src/utils/file.js";
+
+interface CliArgs {
+  command?: string;
+  plan?: string;
+  repo?: string;
+  ref?: string;
+  branch?: string;
+  "auto-pr"?: boolean;
+  model?: string;
+  verbose?: boolean;
+  dir?: string;
+  agentId?: string;
+  "non-interactive"?: boolean;
+  help?: boolean;
+}
+
+function parseArgs(): CliArgs {
+  const args = process.argv.slice(2);
+  const parsed: CliArgs = {};
+
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+
+    if (arg === "--plan" && i + 1 < args.length) {
+      parsed.plan = args[++i];
+    } else if (arg === "--repo" && i + 1 < args.length) {
+      parsed.repo = args[++i];
+    } else if (arg === "--ref" && i + 1 < args.length) {
+      parsed.ref = args[++i];
+    } else if (arg === "--branch" && i + 1 < args.length) {
+      parsed.branch = args[++i];
+    } else if (arg === "--auto-pr") {
+      parsed["auto-pr"] = true;
+    } else if (arg === "--model" && i + 1 < args.length) {
+      parsed.model = args[++i];
+    } else if (arg === "--verbose" || arg === "-v") {
+      parsed.verbose = true;
+    } else if (arg === "--dir" && i + 1 < args.length) {
+      parsed.dir = args[++i];
+    } else if (arg === "--non-interactive" || arg === "--no-interactive") {
+      parsed["non-interactive"] = true;
+    } else if (arg === "--help" || arg === "-h") {
+      parsed.help = true;
+    } else if (!arg.startsWith("--") && !parsed.command) {
+      parsed.command = arg;
+    } else if (!arg.startsWith("--") && parsed.command === "status" && !parsed.agentId) {
+      parsed.agentId = arg;
+    }
+  }
+
+  return parsed;
+}
+
+async function main() {
+  const args = parseArgs();
+
+  // Show help without requiring API key
+  if (args.help || (!args.command && args["non-interactive"])) {
+    showHelp();
+    return;
+  }
+
+  const apiKey = process.env.CURSOR_API_KEY;
+
+  if (!apiKey) {
+    console.error("Error: CURSOR_API_KEY environment variable is not set");
+    console.error("");
+    console.error("Please set it with:");
+    console.error("  export CURSOR_API_KEY=your_api_key");
+    console.error("");
+    console.error("You can obtain an API key from:");
+    console.error("  https://cursor.com/settings");
+    process.exit(1);
+  }
+
+  const apiClient = new CloudAgentsApiClient(apiKey);
+
+  // Quick launch mode: cloud-agent launch --plan plan.md
+  if (args.command === "launch" && args.plan) {
+    try {
+      // Read plan file
+      const planContent = await readPlanFile(args.plan);
+
+      // Detect or use provided repository and ref
+      const workingDir = args.dir || process.cwd();
+      let repository: string;
+      let ref: string;
+
+      // Validate provided repository if given
+      if (args.repo) {
+        const { validateRepositoryUrl } = await import("./src/utils/validation.js");
+        const validation = validateRepositoryUrl(args.repo);
+        if (!validation.valid) {
+          console.error(`Error: ${validation.error}`);
+          process.exit(1);
+        }
+      }
+
+      if (args.repo && args.ref) {
+        repository = args.repo;
+        ref = args.ref;
+      } else {
+        const gitInfo = await detectRepoAndRef(workingDir);
+        if (!gitInfo) {
+          console.error("Error: Could not detect git repository.");
+          console.error("");
+          console.error("Please provide --repo and --ref flags:");
+          console.error("  cloud-agent launch --plan plan.md --repo https://github.com/org/repo --ref main");
+          console.error("");
+          console.error("Or ensure you're in a git repository with a remote configured.");
+          process.exit(1);
+        }
+        repository = args.repo || gitInfo.repository;
+        ref = args.ref || gitInfo.ref;
+      }
+
+      // Quick launch mode - bypass Ink to avoid React ref issues
+      // Launch agent directly and output URL
+      try {
+        if (args.verbose) {
+          console.error("Launching agent...");
+          console.error("──────────────────");
+          console.error(`Repository: ${repository} (auto-detected)`);
+          console.error(`Ref: ${ref} (auto-detected)`);
+          console.error("");
+        }
+
+        const request: {
+          prompt: { text: string };
+          source: { repository: string; ref: string };
+          target?: {
+            branchName?: string;
+            autoCreatePr?: boolean;
+          };
+          model?: string;
+        } = {
+          prompt: {
+            text: planContent,
+          },
+          source: {
+            repository,
+            ref,
+          },
+        };
+
+        // Only add target if we have target options
+        if (args.branch || args["auto-pr"]) {
+          request.target = {};
+          if (args.branch) {
+            request.target.branchName = args.branch;
+          }
+          if (args["auto-pr"]) {
+            request.target.autoCreatePr = true;
+          }
+        }
+
+        // Only add model if provided
+        if (args.model) {
+          request.model = args.model;
+        }
+
+        const agent = await apiClient.launchAgent(request);
+
+        if (args.verbose) {
+          console.error("✓ Agent launched successfully!");
+          console.error("");
+        }
+
+        // Output only the URL (primary workflow)
+        console.log(agent.target.url);
+      } catch (err) {
+        if (err instanceof ApiError) {
+          console.error(`Error: ${err.message}`);
+          if (args.verbose && err.response) {
+            console.error("API Response:", JSON.stringify(err.response, null, 2));
+          }
+        } else if (err instanceof Error) {
+          console.error(`Error: ${err.message}`);
+        } else {
+          console.error("Error: Failed to launch agent");
+        }
+        process.exit(1);
+      }
+    } catch (error) {
+      if (error instanceof Error) {
+        console.error(`Error: ${error.message}`);
+      } else {
+        console.error("Error: Unknown error occurred");
+      }
+      process.exit(1);
+    }
+    return;
+  }
+
+  // List command: cloud-agent list
+  if (args.command === "list") {
+    // Detect repository for filtering
+    const workingDir = args.dir || process.cwd();
+    const gitInfo = await detectRepoAndRef(workingDir);
+    const repositoryFilter = gitInfo?.repository;
+
+    if (args["non-interactive"]) {
+      // Non-interactive mode: output plain text
+      try {
+        const response = await apiClient.listAgents(100); // Get up to 100 agents
+        
+        // Filter by repository if detected
+        let agents = response.agents;
+        if (repositoryFilter) {
+          const normalizeRepo = (url: string) => url.replace(/\.git$/, "").toLowerCase().trim();
+          const normalizedFilter = normalizeRepo(repositoryFilter);
+          agents = response.agents.filter((agent) => {
+            return normalizeRepo(agent.source.repository) === normalizedFilter;
+          });
+        }
+
+        if (agents.length === 0) {
+          if (repositoryFilter) {
+            console.log(`No agents found for ${repositoryFilter}.`);
+          } else {
+            console.log("No agents found.");
+          }
+          console.log("");
+          console.log("Make a cloud agent via command:");
+          console.log("  cloud-agent launch --plan plan.md");
+          return;
+        }
+        
+        if (repositoryFilter) {
+          console.log(`Found ${agents.length} agent(s) for ${repositoryFilter}:\n`);
+        } else {
+          console.log(`Found ${agents.length} agent(s):\n`);
+        }
+        
+        for (const agent of agents) {
+          const statusSymbol = getStatusSymbol(agent.status);
+          console.log(agent.id);
+          console.log(`  Status:     ${statusSymbol} ${agent.status}`);
+          console.log(`  Name:       ${agent.name}`);
+          console.log(`  Repository: ${agent.source.repository}`);
+          if (agent.source.ref) {
+            console.log(`  Ref:        ${agent.source.ref}`);
+          }
+          if (agent.target.branchName) {
+            console.log(`  Branch:     ${agent.target.branchName}`);
+          }
+          console.log(`  URL:        ${agent.target.url}`);
+          if (agent.target.prUrl) {
+            console.log(`  PR:         ${agent.target.prUrl}`);
+          }
+          console.log("");
+        }
+        if (response.nextCursor && !repositoryFilter) {
+          console.log("(More agents available - use interactive mode to paginate)");
+        }
+      } catch (error) {
+        if (error instanceof Error) {
+          console.error(`Error: ${error.message}`);
+        } else {
+          console.error("Error: Failed to list agents");
+        }
+        process.exit(1);
+      }
+      return;
+    }
+    
+    // Interactive mode
+    const { waitUntilExit } = render(
+      <AgentList 
+        apiClient={apiClient} 
+        onBack={() => process.exit(0)}
+        repositoryFilter={repositoryFilter}
+      />
+    );
+    await waitUntilExit();
+    return;
+  }
+
+  // Status command: cloud-agent status <id>
+  if (args.command === "status") {
+    if (!args.agentId) {
+      console.error("Error: Agent ID is required");
+      console.error("Usage: cloud-agent status <agent-id>");
+      process.exit(1);
+    }
+
+    if (args["non-interactive"]) {
+      // Non-interactive mode: output plain text
+      try {
+        const agent = await apiClient.getAgentStatus(args.agentId);
+        const statusSymbol = getStatusSymbol(agent.status);
+        console.log(`Agent: ${agent.id}`);
+        console.log(`Name: ${agent.name}`);
+        console.log(`Status: ${statusSymbol} ${agent.status}`);
+        console.log(`Repository: ${agent.source.repository}`);
+        if (agent.source.ref) {
+          console.log(`Ref: ${agent.source.ref}`);
+        }
+        if (agent.target.branchName) {
+          console.log(`Branch: ${agent.target.branchName}`);
+        }
+        console.log(`URL: ${agent.target.url}`);
+        if (agent.target.prUrl) {
+          console.log(`PR URL: ${agent.target.prUrl}`);
+        }
+        if (agent.summary) {
+          console.log(`\nSummary:\n${agent.summary}`);
+        }
+        console.log(`Created: ${new Date(agent.createdAt).toLocaleString()}`);
+      } catch (error) {
+        if (error instanceof Error) {
+          console.error(`Error: ${error.message}`);
+        } else {
+          console.error("Error: Failed to get agent status");
+        }
+        process.exit(1);
+      }
+      return;
+    }
+
+    // Interactive mode
+    const { waitUntilExit } = render(
+      <AgentStatus
+        apiClient={apiClient}
+        agentId={args.agentId}
+        onBack={() => process.exit(0)}
+      />
+    );
+    await waitUntilExit();
+    return;
+  }
+
+
+  // Interactive mode: cloud-agent (no command) - show main menu
+  if (!args.command) {
+    // Detect repository for filtering
+    const workingDir = args.dir || process.cwd();
+    const gitInfo = await detectRepoAndRef(workingDir);
+    const repositoryFilter = gitInfo?.repository;
+
+    const { waitUntilExit } = render(
+      <App 
+        apiClient={apiClient}
+        initialView="menu"
+        repositoryFilter={repositoryFilter}
+      />
+    );
+    await waitUntilExit();
+    return;
+  }
+
+  // Unknown command
+  console.error(`Unknown command: ${args.command}`);
+  console.error("");
+  showHelp();
+  process.exit(1);
+}
+
+function getStatusSymbol(status: string): string {
+  switch (status) {
+    case "CREATING":
+      return "[●]";
+    case "RUNNING":
+      return "[▶]";
+    case "FINISHED":
+      return "[✓]";
+    case "FAILED":
+      return "[✗]";
+    case "CANCELLED":
+      return "[○]";
+    default:
+      return "[?]";
+  }
+}
+
+function showHelp() {
+  console.log("Cloud Agents CLI");
+  console.log("");
+  console.log("Usage:");
+  console.log("  cloud-agent [command] [options]");
+  console.log("");
+  console.log("Commands:");
+  console.log("  launch --plan <file>    Launch an agent from a plan file");
+  console.log("  list                   List all agents");
+  console.log("  status <id>            Show agent status");
+  console.log("");
+  console.log("Options:");
+  console.log("  --plan <file>          Plan file to use as prompt (required for launch)");
+  console.log("  --repo <url>           Repository URL (auto-detected if not provided)");
+  console.log("  --ref <ref>            Git ref (branch/tag/commit) (auto-detected if not provided)");
+  console.log("  --branch <name>        Target branch name");
+  console.log("  --auto-pr              Automatically create PR when agent completes");
+  console.log("  --model <name>         Model to use (e.g., claude-4-sonnet)");
+  console.log("  --verbose, -v          Show verbose output");
+  console.log("  --dir <path>           Working directory for git detection");
+  console.log("  --non-interactive      Disable interactive mode (output plain text)");
+  console.log("  --help, -h             Show this help message");
+  console.log("");
+  console.log("Examples:");
+  console.log("  cloud-agent launch --plan plan.md");
+  console.log("  cloud-agent launch --plan plan.md --repo https://github.com/org/repo --ref main");
+  console.log("  cloud-agent list");
+  console.log("  cloud-agent list --non-interactive  # Plain text output");
+  console.log("  cloud-agent status bc_abc123");
+  console.log("  cloud-agent status bc_abc123 --non-interactive  # Plain text output");
+  console.log("  cloud-agent  # Interactive agent list");
+  console.log("  cloud-agent --non-interactive  # Show help instead of interactive list");
+}
+
+main().catch((error) => {
+  console.error("Fatal error:", error);
+  process.exit(1);
+});
+

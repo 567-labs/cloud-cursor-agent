@@ -1,2 +1,9 @@
 node_modules/
+cli.js
+cli.js.map
+cloud-agent.js
+cloud-agent.js.map
+dist/
+*.log
+bun.lockb
 

@@ -93,7 +93,7 @@ This plan is organized into 5 phases, each building on the previous, but **Phase
 
 ### Tasks
 
-#### 4.1 Create Main Menu Component
+#### 3.1 Create Main Menu Component
 **File**: `src/components/MainMenu.tsx`
 - Main menu component with options:
   - List agents
@@ -105,10 +105,10 @@ This plan is organized into 5 phases, each building on the previous, but **Phase
 - Dim unselected options with medium gray
 - Note: Launch agent functionality is available via CLI commands (`launch --plan`), not through interactive menu
 
-#### 4.2 Create Agent List Component
+#### 3.2 Create Agent List Component
 **File**: `src/components/AgentList.tsx`
 - Display list of agents in a table-like format using Ink's `Box` and `Text` components
-- Show: ID, name, status (with color coding), repository, branch, and most importantly the `target.url`
+- Show: ID, name, status (monochrome symbols), repository, branch, and most importantly the `target.url`
 - Handle pagination if `nextCursor` is present
 - Allow keyboard navigation (arrow keys, enter to select)
 - Status shown with symbols and text, not colors:
@@ -119,7 +119,7 @@ This plan is organized into 5 phases, each building on the previous, but **Phase
   - `CANCELLED`: `[○] CANCELLED` (medium gray)
 - Agent URL displayed prominently below each agent in highlight color (cyan)
 
-#### 4.3 Integrate Interactive Mode into CLI
+#### 3.3 Integrate Interactive Mode into CLI
 **File**: `cloud-agent.tsx`
 - When no subcommand is provided, render `MainMenu` component as root
 - Route to appropriate components based on menu selection
@@ -138,7 +138,7 @@ This plan is organized into 5 phases, each building on the previous, but **Phase
 
 ### Tasks
 
-#### 5.1 Enhanced Error Handling
+#### 4.1 Enhanced Error Handling
 - Network errors: Show user-friendly message
 - API errors: Display error message from API response
 - Missing API key: Clear instruction to set `CURSOR_API_KEY`
@@ -146,14 +146,14 @@ This plan is organized into 5 phases, each building on the previous, but **Phase
 - Rate limiting: Handle 429 responses with appropriate messaging
 - File reading errors: Clear error messages for missing files or read errors
 
-#### 5.2 Input Validation
+#### 4.2 Input Validation
 - Validate repository URLs
 - Validate ref/branch names
 - Validate file paths
 - Validate API key format (if applicable)
 - Show validation errors in UI components
 
-#### 5.3 Testing & Edge Cases
+#### 4.3 Testing & Edge Cases
 - Test with valid API key
 - Test with missing API key
 - Test repository detection in various Git configurations
@@ -163,7 +163,7 @@ This plan is organized into 5 phases, each building on the previous, but **Phase
 - Test file reading with various file paths (relative, absolute, missing files)
 - Test markdown file reading (with and without frontmatter)
 
-#### 5.4 Documentation & UX Improvements
+#### 4.4 Documentation & UX Improvements
 - Ensure all keyboard shortcuts are documented in UI
 - Improve error messages to be more actionable
 - Add loading states and spinners where appropriate
@@ -179,6 +179,12 @@ This reference material captures the detailed specifications that the earlier ph
 ## API Endpoints Reference
 
 Based on the [Cloud Agents API documentation](https://cursor.com/docs/cloud-agent/api/endpoints), we'll implement support for the following endpoints:
+
+**Authentication**: Basic Authentication using API key from `CURSOR_API_KEY` environment variable. Format: `-u YOUR_API_KEY:` (empty password). In code, this translates to `Authorization: Basic <base64(apiKey + ':')>`.
+
+**Base URL**: `https://api.cursor.com`
+
+**Content-Type**: `application/json` for POST requests
 
 ### 1. List Agents
 - **Endpoint**: `GET /v0/agents`
@@ -340,23 +346,9 @@ interface ModelsResponse {
 **File**: `src/components/AgentList.tsx`
 
 - Display list of agents in a table-like format using Ink's `Box` and `Text` components
-- Show: ID, name, status (with color coding), repository, branch, and most importantly the `target.url`
+- Show: ID, name, status (monochrome symbols), repository, branch, and most importantly the `target.url`
 - Handle pagination if `nextCursor` is present
 - Allow keyboard navigation (arrow keys, enter to select)
-
-**File**: `src/components/LaunchAgentForm.tsx`
-
-- Interactive form using Ink's `useInput` hook
-- Collect:
-  - Prompt text (required, or read from file if `--plan` flag provided)
-  - Repository (optional, auto-detect from working dir)
-  - Ref/branch (optional, auto-detect from working dir)
-  - Branch name for target (optional)
-  - Auto-create PR option (optional)
-  - Model selection (optional, with "Auto" option)
-- Show detected repository/ref info if auto-detected
-- Display validation errors
-- On submit, call API and show the created agent's URL
 
 **File**: `src/components/QuickLaunch.tsx`
 
@@ -370,18 +362,17 @@ interface ModelsResponse {
 
 - Main menu component with options:
   - List agents
-  - Launch new agent
   - Exit
 - Use arrow keys for navigation, Enter to select
+- Note: Launch agent functionality is available via CLI commands (`launch --plan`), not through interactive menu
 
 ### 5. Refactor Main CLI Entry Point
 
 **File**: `cloud-agent.tsx` (or keep as `cli.tsx` but binary name is `cloud-agent`)
 
-- Replace current agent execution logic with menu-driven interface
 - Initialize API client with environment variable check
 - Show error if `CURSOR_API_KEY` is missing
-- Render `MainMenu` component as root (unless in quick-launch mode)
+- Render `MainMenu` component as root (unless in quick-launch mode or when subcommands are provided)
 - Handle command-line arguments:
   - **`launch` subcommand**: Launch a single agent
     - `cloud-agent launch --plan plan.md`: Launch single agent from plan file
@@ -470,7 +461,6 @@ const colors = {
 │  ─────────────────────────────────   │
 │                                      │
 │  > List Agents                       │
-│    Launch New Agent                  │
 │    Exit                              │
 │                                      │
 │  Use ↑↓ to navigate, Enter to select│
@@ -491,7 +481,6 @@ Cursor Cloud Agents
 ───────────────────
 
   > List Agents          ← highlight color (cyan)
-    Launch New Agent     ← medium gray
     Exit                 ← medium gray
 
 Use ↑↓ to navigate, Enter to select  ← light gray
@@ -551,52 +540,7 @@ bc_ghi789   Refactor API        [●] CREATING   org/repo
             └─ https://cursor.com/agents?id=bc_ghi789  ← highlight
 ```
 
-#### 3. Launch Agent Form (`LaunchAgentForm.tsx`)
-
-**Layout**:
-```
-┌────────────────────────────────────────────────────────────┐
-│  Launch New Agent                                           │
-│  ────────────────────────────────────────────────────────  │
-│                                                             │
-│  Prompt:                                                    │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │ [Text input area - multi-line]                      │   │
-│  │                                                      │   │
-│  └─────────────────────────────────────────────────────┘   │
-│                                                             │
-│  Repository: https://github.com/org/repo (auto-detected)    │
-│  Ref: main (auto-detected)                                  │
-│                                                             │
-│  Options:                                                   │
-│  [ ] Auto-create PR                                         │
-│  [ ] Open as Cursor GitHub App                              │
-│                                                             │
-│  Model: [Auto ▼]                                            │
-│                                                             │
-│  [Launch] [Cancel]                                          │
-│                                                             │
-│  Use Tab to navigate fields                                 │
-└────────────────────────────────────────────────────────────┘
-```
-
-**Features**:
-- Multi-line text input for prompt (use `useInput` with special handling)
-- Show auto-detected repo/ref with `(auto-detected)` label in dim color
-- Allow editing detected values
-- Checkboxes for options (use `[x]` and `[ ]` characters)
-- Dropdown for model selection (use `useInput` with arrow keys)
-- Action buttons at bottom
-- Real-time validation feedback
-- Loading state during submission: "Launching agent..."
-
-**Visual States**:
-- **Editing Prompt**: Cursor visible, border in highlight color
-- **Detected Values**: Shown in medium gray with `(auto-detected)` suffix
-- **Validation Error**: Show error message in medium gray below field (with ✗ symbol)
-- **Submitting**: Show spinner (medium gray) and "Launching..." message
-
-#### 4. Quick Launch (`QuickLaunch.tsx`)
+#### 3. Quick Launch (`QuickLaunch.tsx`)
 
 **Layout** (Minimal, Non-Interactive - MAIN WORKFLOW):
 ```
@@ -650,13 +594,6 @@ https://cursor.com/agents?id=bc_abc123
 - `r`: Refresh list
 - `n`: Next page (if pagination available)
 - `Enter`: View agent details (future enhancement)
-
-**Launch Form**:
-- `Tab`: Move to next field
-- `Shift+Tab`: Move to previous field
-- `Enter`: Submit (when on submit button) or new line (in text area)
-- `Esc`: Cancel and return to menu
-- `Ctrl+C`: Exit application
 
 **Quick Launch**:
 - Output URL immediately
@@ -731,7 +668,6 @@ https://cursor.com/agents?id=bc_abc123
     │   └── schemas.ts         # TypeScript schemas
     ├── components/
     │   ├── AgentList.tsx      # Agent list display
-    │   ├── LaunchAgentForm.tsx # Agent creation form (interactive)
     │   ├── QuickLaunch.tsx    # Quick launch component (non-interactive)
     │   └── MainMenu.tsx       # Main menu component
     └── utils/
@@ -744,18 +680,12 @@ https://cursor.com/agents?id=bc_abc123
 ### Interactive Mode (Default)
 
 1. **Startup**: CLI checks for `CURSOR_API_KEY` environment variable
-2. **Main Menu**: User sees menu with options to list agents or launch new agent
+2. **Main Menu**: User sees menu with options to list agents or exit
 3. **List Agents**: 
-   - Shows table of agents with status colors
+   - Shows table of agents with monochrome status symbols
    - Displays `target.url` prominently for each agent
    - User can press 'q' to return to menu
-4. **Launch Agent**:
-   - Prompts for task description
-   - Auto-detects repository/ref from working directory
-   - Shows detected values and allows override
-   - Submits request and displays created agent URL
-   - Returns to menu
-5. **Error Handling**: Clear error messages for API failures, missing config, etc.
+4. **Error Handling**: Clear error messages for API failures, missing config, etc.
 
 ### Quick Launch Mode (Background Workflow) - MAIN WORKFLOW
 
@@ -859,8 +789,8 @@ cloud-agent status bc_abc123
 ### Scenario 4: Interactive Mode (Secondary)
 ```bash
 cloud-agent
-# Shows menu, user selects "Launch new agent"
-# Interactive form collects details
+# Shows menu, user selects "List agents"
+# Interactive list displays all agents
 ```
 
 ## Future Enhancements (Not in Initial Scope)

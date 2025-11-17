@@ -1,0 +1,268 @@
+/**
+ * API client for Cursor Cloud Agents API
+ * Documentation: https://cursor.com/docs/cloud-agent/api/endpoints
+ */
+
+import type {
+  Agent,
+  ListAgentsResponse,
+  LaunchAgentRequest,
+  AgentConversation,
+  ApiKeyInfo,
+  ModelsResponse,
+  ListRepositoriesResponse,
+  DeleteAgentResponse,
+  AddFollowupResponse,
+} from "./schemas.js";
+
+/**
+ * API client error
+ */
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    public statusCode?: number,
+    public response?: unknown
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
+/**
+ * API client for interacting with Cursor Cloud Agents API
+ */
+export class CloudAgentsApiClient {
+  private baseUrl: string;
+  private apiKey: string;
+
+  constructor(apiKey: string, baseUrl: string = "https://api.cursor.com") {
+    if (!apiKey || typeof apiKey !== "string" || apiKey.trim().length === 0) {
+      throw new Error("API key is required. Please set CURSOR_API_KEY environment variable.");
+    }
+    this.apiKey = apiKey.trim();
+    this.baseUrl = baseUrl;
+  }
+
+  /**
+   * Get Basic Auth header value
+   * Format: Basic <base64(apiKey + ':')>
+   */
+  private getAuthHeader(): string {
+    const credentials = `${this.apiKey}:`;
+    const encoded = Buffer.from(credentials).toString("base64");
+    return `Basic ${encoded}`;
+  }
+
+  /**
+   * Make an HTTP request to the API
+   */
+  private async request<T>(
+    method: string,
+    path: string,
+    body?: unknown
+  ): Promise<T> {
+    const url = `${this.baseUrl}${path}`;
+    const headers: Record<string, string> = {
+      Authorization: this.getAuthHeader(),
+    };
+
+    if (body) {
+      headers["Content-Type"] = "application/json";
+    }
+
+    const options: RequestInit = {
+      method,
+      headers,
+    };
+
+    if (body) {
+      options.body = JSON.stringify(body);
+    }
+
+    try {
+      const response = await fetch(url, options);
+
+      if (!response.ok) {
+        let errorMessage = `API request failed with status ${response.status}`;
+        let errorData: unknown;
+
+        // Handle rate limiting (429)
+        if (response.status === 429) {
+          const retryAfter = response.headers.get("Retry-After");
+          errorMessage = "Rate limit exceeded. Please try again later.";
+          if (retryAfter) {
+            errorMessage += ` Retry after ${retryAfter} seconds.`;
+          }
+        }
+        // Handle authentication errors (401)
+        else if (response.status === 401) {
+          errorMessage = "Authentication failed. Please check your CURSOR_API_KEY.";
+        }
+        // Handle not found (404)
+        else if (response.status === 404) {
+          errorMessage = "Resource not found.";
+        }
+        // Handle bad request (400)
+        else if (response.status === 400) {
+          errorMessage = "Bad request. Please check your input parameters.";
+        }
+
+        try {
+          errorData = await response.json();
+          if (
+            typeof errorData === "object" &&
+            errorData !== null &&
+            "error" in errorData
+          ) {
+            const error = (errorData as { error: { message?: string } }).error;
+            if (error?.message) {
+              errorMessage = error.message;
+            }
+          } else if (
+            typeof errorData === "object" &&
+            errorData !== null &&
+            "message" in errorData
+          ) {
+            errorMessage = (errorData as { message: string }).message;
+          }
+        } catch {
+          // If JSON parsing fails, use the status text or our default message
+          if (response.statusText && response.status < 400) {
+            errorMessage = response.statusText;
+          }
+        }
+
+        throw new ApiError(errorMessage, response.status, errorData);
+      }
+
+      // Handle 204 No Content responses
+      if (response.status === 204) {
+        return {} as T;
+      }
+
+      return await response.json();
+    } catch (error) {
+      if (error instanceof ApiError) {
+        throw error;
+      }
+      if (error instanceof Error) {
+        // Check for common network errors
+        if (error.message.includes("fetch failed") || error.message.includes("ECONNREFUSED")) {
+          throw new ApiError(
+            "Failed to connect to API. Please check your internet connection.",
+            undefined,
+            error
+          );
+        }
+        if (error.message.includes("ENOTFOUND")) {
+          throw new ApiError(
+            "Failed to resolve API hostname. Please check your internet connection.",
+            undefined,
+            error
+          );
+        }
+        throw new ApiError(`Network error: ${error.message}`, undefined, error);
+      }
+      throw new ApiError("Unknown error occurred", undefined, error);
+    }
+  }
+
+  /**
+   * List all cloud agents for the authenticated user
+   * GET /v0/agents
+   */
+  async listAgents(
+    limit?: number,
+    cursor?: string
+  ): Promise<ListAgentsResponse> {
+    const params = new URLSearchParams();
+    if (limit !== undefined) {
+      params.append("limit", limit.toString());
+    }
+    if (cursor) {
+      params.append("cursor", cursor);
+    }
+
+    const queryString = params.toString();
+    const path = `/v0/agents${queryString ? `?${queryString}` : ""}`;
+
+    return this.request<ListAgentsResponse>("GET", path);
+  }
+
+  /**
+   * Retrieve the current status and results of a cloud agent
+   * GET /v0/agents/{id}
+   */
+  async getAgentStatus(id: string): Promise<Agent> {
+    return this.request<Agent>("GET", `/v0/agents/${id}`);
+  }
+
+  /**
+   * Start a new cloud agent to work on your repository
+   * POST /v0/agents
+   */
+  async launchAgent(request: LaunchAgentRequest): Promise<Agent> {
+    return this.request<Agent>("POST", "/v0/agents", request);
+  }
+
+  /**
+   * Retrieve the conversation history of a cloud agent
+   * GET /v0/agents/{id}/conversation
+   */
+  async getAgentConversation(id: string): Promise<AgentConversation> {
+    return this.request<AgentConversation>(
+      "GET",
+      `/v0/agents/${id}/conversation`
+    );
+  }
+
+  /**
+   * Add a follow-up instruction to an existing cloud agent
+   * POST /v0/agents/{id}/followup
+   */
+  async addFollowup(
+    id: string,
+    prompt: { text: string; images?: Array<{ data: string; dimension: { width: number; height: number } }> }
+  ): Promise<AddFollowupResponse> {
+    return this.request<AddFollowupResponse>(
+      "POST",
+      `/v0/agents/${id}/followup`,
+      { prompt }
+    );
+  }
+
+  /**
+   * Delete a cloud agent
+   * DELETE /v0/agents/{id}
+   */
+  async deleteAgent(id: string): Promise<DeleteAgentResponse> {
+    return this.request<DeleteAgentResponse>("DELETE", `/v0/agents/${id}`);
+  }
+
+  /**
+   * Retrieve information about the API key being used for authentication
+   * GET /v0/me
+   */
+  async getApiKeyInfo(): Promise<ApiKeyInfo> {
+    return this.request<ApiKeyInfo>("GET", "/v0/me");
+  }
+
+  /**
+   * Retrieve a list of recommended models for cloud agents
+   * GET /v0/models
+   */
+  async listModels(): Promise<ModelsResponse> {
+    return this.request<ModelsResponse>("GET", "/v0/models");
+  }
+
+  /**
+   * Retrieve a list of GitHub repositories accessible to the authenticated user
+   * GET /v0/repositories
+   * Note: This endpoint has strict rate limits (1/user/minute, 30/user/hour)
+   */
+  async listRepositories(): Promise<ListRepositoriesResponse> {
+    return this.request<ListRepositoriesResponse>("GET", "/v0/repositories");
+  }
+}
+

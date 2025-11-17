@@ -1,29 +1,28 @@
 {
-  "name": "remote-agent",
+  "name": "cloud-agent",
   "version": "1.0.0",
   "type": "module",
   "main": "index.js",
   "bin": {
-    "remote-agent": "./cli.js"
+    "cloud-agent": "./cli.js"
   },
   "scripts": {
-    "test": "tsx hello-agent.ts",
-    "build": "tsx build-cli.ts",
-    "dev": "tsx cli.tsx"
+    "build": "bun run build-cli.ts",
+    "dev": "bun run cloud-agent.tsx",
+    "verify": "test -f cli.js && test -x cli.js && echo '✓ Build verification: cli.js exists and is executable' || echo '✗ Build verification failed'"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "",
+  "description": "CLI tool for managing Cursor Cloud Agents",
   "dependencies": {
     "@cursor-ai/january": "^0.1.3",
-    "tsx": "^4.20.6",
     "react": "^18.2.0",
-    "ink": "^4.4.1"
+    "ink": "^4.4.1",
+    "zod": "^3.23.8"
   },
   "devDependencies": {
     "@types/react": "^18.2.0",
-    "@types/node": "^20.0.0",
-    "esbuild": "^0.19.0"
+    "@types/node": "^20.0.0"
   }
 }
