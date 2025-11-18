@@ -8,6 +8,7 @@ import { Box, Text, useInput } from "ink";
 import { CloudAgentsApiClient, ApiError } from "../api/client.js";
 import { Spinner } from "./Spinner.js";
 import { openInBrowser } from "../utils/browser.js";
+import { getStatusDisplay } from "../utils/status.js";
 import type { Agent } from "../api/schemas.js";
 
 interface AgentListProps {
@@ -23,23 +24,6 @@ type InputKey = {
   rightArrow?: boolean;
   return?: boolean;
 };
-
-function getStatusDisplay(status: string): { symbol: string; label: string; color: string } {
-  switch (status) {
-    case "CREATING":
-      return { symbol: "●", label: "Creating", color: "yellow" };
-    case "RUNNING":
-      return { symbol: "▶", label: "Running", color: "green" };
-    case "FINISHED":
-      return { symbol: "✓", label: "Finished", color: "green" };
-    case "FAILED":
-      return { symbol: "✗", label: "Failed", color: "red" };
-    case "CANCELLED":
-      return { symbol: "○", label: "Cancelled", color: "gray" };
-    default:
-      return { symbol: "?", label: status, color: "gray" };
-  }
-}
 
 function truncate(str: string, maxLength: number): string {
   if (str.length <= maxLength) {
