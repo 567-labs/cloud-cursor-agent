@@ -240,23 +240,56 @@ bun run cloud-agent.tsx batch-delete --status FINISHED --limit 50 --force
 
 **Note:** The `--force` flag is required to actually delete agents. Without it, the command will show what would be deleted and exit.
 
+### API Key Information
+
+Show information about the current API key:
+
+```bash
+bun run cloud-agent.tsx me
+```
+
+This displays:
+
+- API key name
+- Associated email address
+- Creation date
+
+### List Available Models
+
+List all available models for cloud agents:
+
+```bash
+bun run cloud-agent.tsx list-models
+```
+
+This shows all models that can be used with the `--model` flag when launching agents. The output includes a tip about using models with the launch command.
+
 ### Interactive Mode
 
-Launch the interactive agent list:
+Launch the interactive menu:
 
 ```bash
 bun run cloud-agent.tsx
 ```
 
-This opens the agent list directly, filtered to the current repository. You can:
+This opens an interactive menu where you can:
 
-- View agents for the current repository (auto-detected from git)
-- Navigate through the list
+- **List Agents (This Repo)** - View agents for the current repository (auto-detected from git)
+- **List Agents (All)** - View all agents across all repositories
+- **API Key Info** - View information about your current API key
+- **List Models** - View available models for cloud agents
+- **Exit** - Exit the menu
 
-**Keyboard shortcuts:**
+**Menu navigation:**
+
+- `↑` / `↓` or `j` / `k` - Navigate menu options
+- `Enter` - Select option
+- `q` or `Escape` - Exit
+
+**Agent list keyboard shortcuts:**
 
 - `↑` / `↓` - Navigate agents
-- `q` - Exit
+- `q` - Return to menu
 - `r` - Refresh list
 - `n` - Next page (if pagination available)
 
@@ -308,7 +341,9 @@ See [AGENTS.md](./AGENTS.md) for detailed documentation on non-interactive mode 
 
 - **Quick Launch**: Background agent launches with minimal output
 - **Auto-detection**: Automatically detects git repository and ref
-- **Interactive UI**: Menu-driven interface for viewing agents
+- **Interactive UI**: Menu-driven interface for viewing agents and accessing information
+- **API Key Management**: View API key information and verify authentication
+- **Model Discovery**: List available models for cloud agents
 - **Error Handling**: Clear error messages for common issues
 - **Validation**: Input validation for repository URLs and other parameters
 - **Rate Limiting**: Handles API rate limits gracefully
