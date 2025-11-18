@@ -2,6 +2,18 @@
 
 A React Ink-based CLI tool for managing Cursor Cloud Agents. Launch agents, list them, and view their status directly from your terminal.
 
+## Why use this?
+
+This CLI enables **Agent Orchestration**: allowing you (or your agents) to programmatically kick off other parallel agents.
+
+**Example: Managing Large Refactors**
+
+A compelling use case is identifying multiple files that need independent changes (e.g., refactoring to smaller components or adding tests). Instead of one massive 10,000-line pull request, you can use this CLI to:
+
+1.  **Identify** the distinct files or services that need work.
+2.  **Launch** parallel "sub-agents" for each task using this CLI.
+3.  **Receive** smaller, focused PRs that are easier to review.
+
 ## Installing as a CLI Tool
 
 Install this tool globally so you can run `cloud-agent` from any directory:
