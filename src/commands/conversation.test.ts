@@ -1,5 +1,5 @@
 import { test, expect, describe, beforeEach, vi } from "bun:test";
-import { executeConversation } from "./conversation.js";
+import { executeConversation } from "./conversation.jsx";
 import { createMockApiClient } from "../test/utils.jsx";
 import type { CommandContext } from "../api/client.js";
 import { ApiError } from "../api/client.js";
@@ -34,6 +34,16 @@ describe("executeConversation", () => {
   });
 
   test("displays empty message when no messages", async () => {
+    const agent = {
+      id: "bc_test123",
+      name: "Test Agent",
+      status: "RUNNING" as const,
+      source: { repository: "https://github.com/test/repo" },
+      target: { url: "https://cursor.com/agents?id=bc_test123" },
+      createdAt: "2024-01-01T00:00:00Z",
+    };
+
+    context.apiClient.getAgentStatus = async () => agent;
     context.apiClient.getAgentConversation = async () => ({
       id: "bc_test123",
       messages: [],
@@ -46,18 +56,28 @@ describe("executeConversation", () => {
     expect(mockConsoleLog).toHaveBeenCalledWith("No messages yet.");
   });
 
-  test("displays messages in non-interactive mode", async () => {
+  test("displays messages with status in non-interactive mode", async () => {
+    const agent = {
+      id: "bc_test123",
+      name: "Test Agent",
+      status: "RUNNING" as const,
+      source: { repository: "https://github.com/test/repo" },
+      target: { url: "https://cursor.com/agents?id=bc_test123" },
+      createdAt: "2024-01-01T00:00:00Z",
+    };
+
+    context.apiClient.getAgentStatus = async () => agent;
     context.apiClient.getAgentConversation = async () => ({
       id: "bc_test123",
       messages: [
         {
           id: "msg1",
-          type: "user_message",
+          type: "user_message" as const,
           text: "User message",
         },
         {
           id: "msg2",
-          type: "assistant_message",
+          type: "assistant_message" as const,
           text: "Agent response",
         },
       ],
@@ -65,39 +85,16 @@ describe("executeConversation", () => {
 
     await executeConversation(context, {
       agentId: "bc_test123",
-      "non-interactive": true,
     });
 
+    expect(mockConsoleLog).toHaveBeenCalledWith(
+      expect.stringContaining("Agent Status: RUNNING")
+    );
     expect(mockConsoleLog).toHaveBeenCalledWith(
       expect.stringContaining("[User]")
     );
     expect(mockConsoleLog).toHaveBeenCalledWith(
       expect.stringContaining("[Agent]")
-    );
-  });
-
-  test("displays formatted messages in interactive mode", async () => {
-    context.apiClient.getAgentConversation = async () => ({
-      id: "bc_test123",
-      messages: [
-        {
-          id: "msg1",
-          type: "user_message",
-          text: "User message",
-        },
-      ],
-    });
-
-    await executeConversation(context, {
-      agentId: "bc_test123",
-      "non-interactive": false,
-    });
-
-    expect(mockConsoleLog).toHaveBeenCalledWith(
-      expect.stringContaining("Conversation for agent")
-    );
-    expect(mockConsoleLog).toHaveBeenCalledWith(
-      expect.stringContaining("User")
     );
   });
 

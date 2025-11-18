@@ -35,7 +35,7 @@ describe("executeFollowup", () => {
   test("exits with error when agent ID is invalid", async () => {
     await executeFollowup(context, {
       agentId: "invalid",
-      prompt: "Test prompt",
+      messages: "Test prompt",
     });
 
     expect(mockConsoleError).toHaveBeenCalled();
@@ -53,7 +53,7 @@ describe("executeFollowup", () => {
 
     await executeFollowup(context, {
       agentId: "bc_test123",
-      prompt: "Continue with the next task",
+      messages: "Continue with the next task",
     });
 
     expect(context.apiClient.addFollowup).toHaveBeenCalledWith(
@@ -80,7 +80,7 @@ describe("executeFollowup", () => {
 
     await executeFollowup(context, {
       agentId: "bc_test123",
-      prompt: "@plan.md",
+      messages: "@plan.md",
     });
 
     expect(mockReadPlanFile).toHaveBeenCalledWith("plan.md");
@@ -105,7 +105,7 @@ describe("executeFollowup", () => {
 
     await executeFollowup(context, {
       agentId: "bc_test123",
-      prompt: "-",
+      messages: "-",
     });
 
     expect(mockReadPlanFile).toHaveBeenCalledWith("-");
@@ -127,7 +127,7 @@ describe("executeFollowup", () => {
 
     await executeFollowup(context, {
       agentId: "bc_test123",
-      prompt: "   ",
+      messages: "   ",
     });
 
     expect(mockConsoleError).toHaveBeenCalledWith(
@@ -146,7 +146,7 @@ describe("executeFollowup", () => {
 
     await executeFollowup(context, {
       agentId: "bc_test123",
-      prompt: "Test prompt",
+      messages: "Test prompt",
     });
 
     expect(mockConsoleError).toHaveBeenCalledWith(
@@ -162,7 +162,7 @@ describe("executeFollowup", () => {
 
     await executeFollowup(context, {
       agentId: "bc_test123",
-      prompt: "Test prompt",
+      messages: "Test prompt",
     });
 
     expect(mockConsoleError).toHaveBeenCalledWith(
