@@ -11,7 +11,7 @@ import { CloudAgentsApiClient, ApiError } from "./src/api/client.js";
 import { AgentList } from "./src/components/AgentList.js";
 import { AgentStatus } from "./src/components/AgentStatus.js";
 import { App } from "./src/components/App.js";
-import { detectRepoAndRef } from "./src/utils/git.js";
+import { detectRepoAndRef, isGitRepository } from "./src/utils/git.js";
 import { readPlanFile } from "./src/utils/file.js";
 
 interface CliArgs {
@@ -96,8 +96,33 @@ async function main() {
   // Quick launch mode: cloud-agent launch --plan plan.md
   if (args.command === "launch" && args.plan) {
     try {
+      // Import validation functions
+      const {
+        validateRepositoryUrl,
+        validatePlanFilePath,
+        validatePlanContent,
+        validateBranchName,
+        validateRef,
+      } = await import("./src/utils/validation.js");
+
+      // Validate plan file path (skip validation for stdin "-")
+      if (args.plan !== "-") {
+        const planPathValidation = validatePlanFilePath(args.plan);
+        if (!planPathValidation.valid) {
+          console.error(`Error: ${planPathValidation.error}`);
+          process.exit(1);
+        }
+      }
+
       // Read plan file
       const planContent = await readPlanFile(args.plan);
+
+      // Validate plan content
+      const planContentValidation = validatePlanContent(planContent);
+      if (!planContentValidation.valid) {
+        console.error(`Error: ${planContentValidation.error}`);
+        process.exit(1);
+      }
 
       // Detect or use provided repository and ref
       const workingDir = args.dir || process.cwd();
@@ -106,10 +131,18 @@ async function main() {
 
       // Validate provided repository if given
       if (args.repo) {
-        const { validateRepositoryUrl } = await import("./src/utils/validation.js");
-        const validation = validateRepositoryUrl(args.repo);
-        if (!validation.valid) {
-          console.error(`Error: ${validation.error}`);
+        const repoValidation = validateRepositoryUrl(args.repo);
+        if (!repoValidation.valid) {
+          console.error(`Error: ${repoValidation.error}`);
+          process.exit(1);
+        }
+      }
+
+      // Validate provided ref if given
+      if (args.ref) {
+        const refValidation = validateRef(args.ref);
+        if (!refValidation.valid) {
+          console.error(`Error: ${refValidation.error}`);
           process.exit(1);
         }
       }
@@ -118,18 +151,41 @@ async function main() {
         repository = args.repo;
         ref = args.ref;
       } else {
-        const gitInfo = await detectRepoAndRef(workingDir);
-        if (!gitInfo) {
-          console.error("Error: Could not detect git repository.");
+        // Check if we're in a git repository before attempting detection
+        if (!isGitRepository(workingDir)) {
+          console.error("Error: Not in a git repository.");
           console.error("");
           console.error("Please provide --repo and --ref flags:");
           console.error("  cloud-agent launch --plan plan.md --repo https://github.com/org/repo --ref main");
           console.error("");
-          console.error("Or ensure you're in a git repository with a remote configured.");
+          console.error("Or navigate to a git repository with a remote configured.");
+          process.exit(1);
+        }
+
+        const gitInfo = await detectRepoAndRef(workingDir);
+        if (!gitInfo) {
+          console.error("Error: Could not detect git repository information.");
+          console.error("");
+          console.error("Please provide --repo and --ref flags:");
+          console.error("  cloud-agent launch --plan plan.md --repo https://github.com/org/repo --ref main");
+          console.error("");
+          console.error("Or ensure your git repository has a remote 'origin' configured.");
           process.exit(1);
         }
         repository = args.repo || gitInfo.repository;
         ref = args.ref || gitInfo.ref;
+
+        // Validate auto-detected ref if not already validated
+        if (!args.ref) {
+          const refValidation = validateRef(ref);
+          if (!refValidation.valid) {
+            console.error(`Error: Auto-detected ref "${ref}" is invalid: ${refValidation.error}`);
+            console.error("");
+            console.error("Please provide a valid --ref flag:");
+            console.error("  cloud-agent launch --plan plan.md --repo https://github.com/org/repo --ref main");
+            process.exit(1);
+          }
+        }
       }
 
       // Quick launch mode - bypass Ink to avoid React ref issues
@@ -160,6 +216,15 @@ async function main() {
             ref,
           },
         };
+
+        // Validate branch name if provided
+        if (args.branch) {
+          const branchValidation = validateBranchName(args.branch);
+          if (!branchValidation.valid) {
+            console.error(`Error: ${branchValidation.error}`);
+            process.exit(1);
+          }
+        }
 
         // Set up target options
         // auto-pr is default unless --no-auto-pr is specified
@@ -310,6 +375,16 @@ async function main() {
     if (!args.agentId) {
       console.error("Error: Agent ID is required");
       console.error("Usage: cloud-agent status <agent-id>");
+      process.exit(1);
+    }
+
+    // Validate agent ID format
+    const { validateAgentId } = await import("./src/utils/validation.js");
+    const agentIdValidation = validateAgentId(args.agentId);
+    if (!agentIdValidation.valid) {
+      console.error(`Error: ${agentIdValidation.error}`);
+      console.error("");
+      console.error("Agent ID must look like bc_123abc (letters and numbers only, at least 5 characters after bc_).");
       process.exit(1);
     }
 
