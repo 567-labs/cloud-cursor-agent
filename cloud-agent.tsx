@@ -11,8 +11,8 @@ import { CloudAgentsApiClient, ApiError } from "./src/api/client.js";
 import { AgentList } from "./src/components/AgentList.js";
 import { AgentStatus } from "./src/components/AgentStatus.js";
 import { App } from "./src/components/App.js";
-import { detectRepoAndRef } from "./src/utils/git.js";
-import { readPlanFile } from "./src/utils/file.js";
+import { detectRepoAndRef, GitDetectionError } from "./src/utils/git.js";
+import { readPlanFile, FileReadError } from "./src/utils/file.js";
 
 interface CliArgs {
   command?: string;
@@ -183,113 +183,119 @@ async function main() {
 
         // Output only the URL (primary workflow)
         console.log(agent.target.url);
-      } catch (err) {
-        if (err instanceof ApiError) {
-          console.error(`Error: ${err.message}`);
-          if (args.verbose && err.response) {
-            console.error("API Response:", JSON.stringify(err.response, null, 2));
-          }
-        } else if (err instanceof Error) {
-          console.error(`Error: ${err.message}`);
-        } else {
-          console.error("Error: Failed to launch agent");
-        }
-        process.exit(1);
-      }
-    } catch (error) {
-      if (error instanceof Error) {
-        console.error(`Error: ${error.message}`);
-      } else {
-        console.error("Error: Unknown error occurred");
-      }
-      process.exit(1);
-    }
-    return;
-  }
-
-  // List command: cloud-agent list
-  if (args.command === "list") {
-    // Detect repository for filtering
-    const workingDir = args.dir || process.cwd();
-    const gitInfo = await detectRepoAndRef(workingDir);
-    const repositoryFilter = gitInfo?.repository;
-
-    if (args["non-interactive"]) {
-      // Non-interactive mode: output plain text
-      try {
-        const response = await apiClient.listAgents(100); // Get up to 100 agents
-        
-        // Filter by repository if detected
-        let agents = response.agents;
-        if (repositoryFilter) {
-          const normalizeRepo = (url: string) => url.replace(/\.git$/, "").toLowerCase().trim();
-          const normalizedFilter = normalizeRepo(repositoryFilter);
-          agents = response.agents.filter((agent) => {
-            return normalizeRepo(agent.source.repository) === normalizedFilter;
-          });
-        }
-
-        if (agents.length === 0) {
-          if (repositoryFilter) {
-            console.log(`No agents found for ${repositoryFilter}.`);
+        } catch (err) {
+          if (err instanceof ApiError) {
+            logApiError(err, { verbose: args.verbose });
           } else {
-            console.log("No agents found.");
+            logUnknownError(err, "Error: Failed to launch agent");
           }
-          console.log("");
-          console.log("Make a cloud agent via command:");
-          console.log("  cloud-agent launch --plan plan.md");
-          return;
-        }
-        
-        if (repositoryFilter) {
-          console.log(`Found ${agents.length} agent(s) for ${repositoryFilter}:\n`);
-        } else {
-          console.log(`Found ${agents.length} agent(s):\n`);
-        }
-        
-        for (const agent of agents) {
-          const statusSymbol = getStatusSymbol(agent.status);
-          console.log(agent.id);
-          console.log(`  Status:     ${statusSymbol} ${agent.status}`);
-          console.log(`  Name:       ${agent.name}`);
-          console.log(`  Repository: ${agent.source.repository}`);
-          if (agent.source.ref) {
-            console.log(`  Ref:        ${agent.source.ref}`);
-          }
-          if (agent.target.branchName) {
-            console.log(`  Branch:     ${agent.target.branchName}`);
-          }
-          console.log(`  URL:        ${agent.target.url}`);
-          if (agent.target.prUrl) {
-            console.log(`  PR:         ${agent.target.prUrl}`);
-          }
-          console.log("");
-        }
-        if (response.nextCursor && !repositoryFilter) {
-          console.log("(More agents available - use interactive mode to paginate)");
+          process.exit(1);
         }
       } catch (error) {
-        if (error instanceof Error) {
-          console.error(`Error: ${error.message}`);
+        if (error instanceof FileReadError) {
+          logFileReadError(error);
+        } else if (error instanceof GitDetectionError) {
+          logGitDetectionError(error);
         } else {
-          console.error("Error: Failed to list agents");
+          logUnknownError(error, "Error: Unknown error occurred");
         }
         process.exit(1);
       }
-      return;
-    }
-    
-    // Interactive mode
-    const { waitUntilExit } = render(
-      <AgentList 
-        apiClient={apiClient} 
-        onBack={() => process.exit(0)}
-        repositoryFilter={repositoryFilter}
-      />
-    );
-    await waitUntilExit();
     return;
   }
+
+    // List command: cloud-agent list
+    if (args.command === "list") {
+      const workingDir = args.dir || process.cwd();
+      let repositoryFilter: string | undefined;
+      try {
+        const gitInfo = await detectRepoAndRef(workingDir);
+        repositoryFilter = gitInfo?.repository;
+      } catch (error) {
+        if (error instanceof GitDetectionError) {
+          logGitDetectionError(error, { warning: true });
+        } else {
+          throw error;
+        }
+      }
+
+      if (args["non-interactive"]) {
+        // Non-interactive mode: output plain text
+        try {
+          const response = await apiClient.listAgents(100); // Get up to 100 agents
+
+          // Filter by repository if detected
+          let agents = response.agents;
+          if (repositoryFilter) {
+            const normalizeRepo = (url: string) =>
+              url.replace(/\.git$/, "").toLowerCase().trim();
+            const normalizedFilter = normalizeRepo(repositoryFilter);
+            agents = response.agents.filter((agent) => {
+              return normalizeRepo(agent.source.repository) === normalizedFilter;
+            });
+          }
+
+          if (agents.length === 0) {
+            if (repositoryFilter) {
+              console.log(`No agents found for ${repositoryFilter}.`);
+            } else {
+              console.log("No agents found.");
+            }
+            console.log("");
+            console.log("Make a cloud agent via command:");
+            console.log("  cloud-agent launch --plan plan.md");
+            return;
+          }
+
+          if (repositoryFilter) {
+            console.log(`Found ${agents.length} agent(s) for ${repositoryFilter}:\n`);
+          } else {
+            console.log(`Found ${agents.length} agent(s):\n`);
+          }
+
+          for (const agent of agents) {
+            const statusSymbol = getStatusSymbol(agent.status);
+            console.log(agent.id);
+            console.log(`  Status:     ${statusSymbol} ${agent.status}`);
+            console.log(`  Name:       ${agent.name}`);
+            console.log(`  Repository: ${agent.source.repository}`);
+            if (agent.source.ref) {
+              console.log(`  Ref:        ${agent.source.ref}`);
+            }
+            if (agent.target.branchName) {
+              console.log(`  Branch:     ${agent.target.branchName}`);
+            }
+            console.log(`  URL:        ${agent.target.url}`);
+            if (agent.target.prUrl) {
+              console.log(`  PR:         ${agent.target.prUrl}`);
+            }
+            console.log("");
+          }
+          if (response.nextCursor && !repositoryFilter) {
+            console.log("(More agents available - use interactive mode to paginate)");
+          }
+        } catch (error) {
+          if (error instanceof ApiError) {
+            logApiError(error, { verbose: args.verbose });
+          } else {
+            logUnknownError(error, "Error: Failed to list agents");
+          }
+          process.exit(1);
+        }
+        return;
+      }
+
+      // Interactive mode
+      const { waitUntilExit } = render(
+        <AgentList
+          apiClient={apiClient}
+          onBack={() => process.exit(0)}
+          repositoryFilter={repositoryFilter}
+        />
+      );
+      await waitUntilExit();
+      return;
+    }
 
   // Status command: cloud-agent status <id>
   if (args.command === "status") {
@@ -322,14 +328,14 @@ async function main() {
           console.log(`\nSummary:\n${agent.summary}`);
         }
         console.log(`Created: ${new Date(agent.createdAt).toLocaleString()}`);
-      } catch (error) {
-        if (error instanceof Error) {
-          console.error(`Error: ${error.message}`);
-        } else {
-          console.error("Error: Failed to get agent status");
+        } catch (error) {
+          if (error instanceof ApiError) {
+            logApiError(error, { verbose: args.verbose });
+          } else {
+            logUnknownError(error, "Error: Failed to get agent status");
+          }
+          process.exit(1);
         }
-        process.exit(1);
-      }
       return;
     }
 
@@ -347,11 +353,20 @@ async function main() {
 
 
   // Interactive mode: cloud-agent (no command) - show main menu
-  if (!args.command) {
-    // Detect repository for filtering
-    const workingDir = args.dir || process.cwd();
-    const gitInfo = await detectRepoAndRef(workingDir);
-    const repositoryFilter = gitInfo?.repository;
+    if (!args.command) {
+      // Detect repository for filtering
+      const workingDir = args.dir || process.cwd();
+      let repositoryFilter: string | undefined;
+      try {
+        const gitInfo = await detectRepoAndRef(workingDir);
+        repositoryFilter = gitInfo?.repository;
+      } catch (error) {
+        if (error instanceof GitDetectionError) {
+          logGitDetectionError(error, { warning: true });
+        } else {
+          throw error;
+        }
+      }
 
     const { waitUntilExit } = render(
       <App 
@@ -422,8 +437,59 @@ function showHelp() {
   console.log("  cloud-agent --non-interactive  # Show help instead of interactive list");
 }
 
+function logApiError(error: ApiError, options: { verbose?: boolean } = {}) {
+  console.error(`Error: ${error.message}`);
+  if (error.hint) {
+    console.error(`Hint: ${error.hint}`);
+  }
+  if (error.statusCode) {
+    const details = [`Status: ${error.statusCode}`];
+    if (error.requestId) {
+      details.push(`Request ID: ${error.requestId}`);
+    }
+    console.error(details.join(" | "));
+  }
+  if (options.verbose && error.response) {
+    console.error("API response:", JSON.stringify(error.response, null, 2));
+  }
+}
+
+function logFileReadError(error: FileReadError) {
+  console.error(`Error: ${error.message}`);
+  if (error.hint) {
+    console.error(`Hint: ${error.hint}`);
+  }
+}
+
+function logGitDetectionError(
+  error: GitDetectionError,
+  options: { warning?: boolean } = {}
+) {
+  const label = options.warning ? "Warning" : "Error";
+  console.error(`${label}: ${error.message}`);
+  if (error.hint) {
+    console.error(`Hint: ${error.hint}`);
+  }
+}
+
+function logUnknownError(error: unknown, fallbackMessage: string) {
+  if (error instanceof Error) {
+    console.error(`Error: ${error.message}`);
+    return;
+  }
+  console.error(fallbackMessage);
+}
+
 main().catch((error) => {
-  console.error("Fatal error:", error);
+  if (error instanceof ApiError) {
+    logApiError(error);
+  } else if (error instanceof FileReadError) {
+    logFileReadError(error);
+  } else if (error instanceof GitDetectionError) {
+    logGitDetectionError(error);
+  } else {
+    logUnknownError(error, "Fatal error: Unknown error occurred");
+  }
   process.exit(1);
 });
 

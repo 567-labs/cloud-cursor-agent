@@ -18,14 +18,38 @@ import type {
 /**
  * API client error
  */
+export interface ApiErrorOptions {
+  statusCode?: number;
+  response?: unknown;
+  method?: string;
+  path?: string;
+  hint?: string;
+  requestId?: string | null;
+  retryAfterSeconds?: number | null;
+  cause?: unknown;
+}
+
 export class ApiError extends Error {
-  constructor(
-    message: string,
-    public statusCode?: number,
-    public response?: unknown
-  ) {
+  public statusCode?: number;
+  public response?: unknown;
+  public method?: string;
+  public path?: string;
+  public hint?: string;
+  public requestId?: string | null;
+  public retryAfterSeconds?: number | null;
+  public cause?: unknown;
+
+  constructor(message: string, options: ApiErrorOptions = {}) {
     super(message);
     this.name = "ApiError";
+    this.statusCode = options.statusCode;
+    this.response = options.response;
+    this.method = options.method;
+    this.path = options.path;
+    this.hint = options.hint;
+    this.requestId = options.requestId;
+    this.retryAfterSeconds = options.retryAfterSeconds ?? null;
+    this.cause = options.cause;
   }
 }
 
@@ -57,11 +81,11 @@ export class CloudAgentsApiClient {
   /**
    * Make an HTTP request to the API
    */
-  private async request<T>(
-    method: string,
-    path: string,
-    body?: unknown
-  ): Promise<T> {
+    private async request<T>(
+      method: string,
+      path: string,
+      body?: unknown
+    ): Promise<T> {
     const url = `${this.baseUrl}${path}`;
     const headers: Record<string, string> = {
       Authorization: this.getAuthHeader(),
@@ -76,97 +100,156 @@ export class CloudAgentsApiClient {
       headers,
     };
 
-    if (body) {
-      options.body = JSON.stringify(body);
-    }
+      if (body) {
+        options.body = JSON.stringify(body);
+      }
 
-    try {
-      const response = await fetch(url, options);
+      const requestLabel = `${method.toUpperCase()} ${path}`;
 
-      if (!response.ok) {
-        let errorMessage = `API request failed with status ${response.status}`;
-        let errorData: unknown;
+      try {
+        const response = await fetch(url, options);
 
-        // Handle rate limiting (429)
-        if (response.status === 429) {
-          const retryAfter = response.headers.get("Retry-After");
-          errorMessage = "Rate limit exceeded. Please try again later.";
-          if (retryAfter) {
-            errorMessage += ` Retry after ${retryAfter} seconds.`;
+        if (!response.ok) {
+          const requestId = response.headers.get("x-request-id");
+          const retryAfterHeader = response.headers.get("Retry-After");
+          const retryAfterSeconds = retryAfterHeader
+            ? Number.parseInt(retryAfterHeader, 10) || null
+            : null;
+          const contentType = response.headers.get("content-type") ?? "";
+          const expectsJson = contentType.includes("application/json");
+
+          let errorData: unknown = null;
+          let extractedMessage: string | undefined;
+
+          if (response.status !== 204) {
+            try {
+              if (expectsJson) {
+                errorData = await response.json();
+              } else {
+                const text = await response.text();
+                errorData = text || null;
+              }
+            } catch (parseError) {
+              errorData = { parseError: (parseError as Error).message };
+            }
           }
+
+          if (typeof errorData === "object" && errorData !== null) {
+            if ("error" in errorData && typeof (errorData as any).error === "object") {
+              const apiError = (errorData as { error?: { message?: string } }).error;
+              extractedMessage = apiError?.message;
+            } else if ("message" in errorData && typeof (errorData as any).message === "string") {
+              extractedMessage = (errorData as { message: string }).message;
+            }
+          } else if (typeof errorData === "string" && errorData.trim().length > 0) {
+            extractedMessage = errorData.trim();
+          }
+
+          let errorMessage =
+            extractedMessage ??
+            `API request failed (${response.status} ${response.statusText || ""}) while calling ${requestLabel}`.trim();
+
+          let hint: string | undefined;
+
+          if (response.status === 429) {
+            hint =
+              retryAfterSeconds !== null
+                ? `Wait ${retryAfterSeconds} seconds and try again.`
+                : "Please wait before retrying. The API has rate-limited the request.";
+            errorMessage = "Rate limit exceeded.";
+          } else if (response.status === 401) {
+            hint = "Check that CURSOR_API_KEY is set and valid.";
+            errorMessage = "Authentication failed.";
+          } else if (response.status === 403) {
+            hint = "Your API key might not have permission to perform this action.";
+            errorMessage = extractedMessage ?? "Access forbidden for this API call.";
+          } else if (response.status === 404) {
+            hint = "Make sure the resource exists or the ID is correct.";
+            errorMessage = extractedMessage ?? "Resource not found.";
+          } else if (response.status === 400 || response.status === 422) {
+            hint = "Double-check the request body and options you provided.";
+            errorMessage = extractedMessage ?? "The API rejected the request payload.";
+          } else if (response.status >= 500) {
+            hint = "This is likely a temporary API issue. Try again shortly.";
+            errorMessage = extractedMessage ?? "The API is currently unavailable.";
+          }
+
+          throw new ApiError(errorMessage, {
+            statusCode: response.status,
+            response: errorData,
+            method,
+            path,
+            hint,
+            requestId,
+            retryAfterSeconds,
+          });
         }
-        // Handle authentication errors (401)
-        else if (response.status === 401) {
-          errorMessage = "Authentication failed. Please check your CURSOR_API_KEY.";
-        }
-        // Handle not found (404)
-        else if (response.status === 404) {
-          errorMessage = "Resource not found.";
-        }
-        // Handle bad request (400)
-        else if (response.status === 400) {
-          errorMessage = "Bad request. Please check your input parameters.";
+
+        // Handle 204 No Content responses
+        if (response.status === 204) {
+          return {} as T;
         }
 
         try {
-          errorData = await response.json();
+          return (await response.json()) as T;
+        } catch (parseError) {
+          throw new ApiError("Failed to parse API response as JSON.", {
+            method,
+            path,
+            cause: parseError,
+            hint: "Please retry the command. If the problem persists, contact support.",
+          });
+        }
+      } catch (error) {
+        if (error instanceof ApiError) {
+          throw error;
+        }
+        if (error instanceof Error) {
+          const causeMessage = error.message || "Unknown network error";
+
           if (
-            typeof errorData === "object" &&
-            errorData !== null &&
-            "error" in errorData
+            causeMessage.includes("fetch failed") ||
+            causeMessage.includes("ECONNREFUSED") ||
+            causeMessage.includes("ECONNRESET")
           ) {
-            const error = (errorData as { error: { message?: string } }).error;
-            if (error?.message) {
-              errorMessage = error.message;
-            }
-          } else if (
-            typeof errorData === "object" &&
-            errorData !== null &&
-            "message" in errorData
-          ) {
-            errorMessage = (errorData as { message: string }).message;
+            throw new ApiError("Failed to connect to the API server.", {
+              method,
+              path,
+              hint: "Check your internet connection or VPN settings.",
+              cause: error,
+            });
           }
-        } catch {
-          // If JSON parsing fails, use the status text or our default message
-          if (response.statusText && response.status < 400) {
-            errorMessage = response.statusText;
+          if (causeMessage.includes("ENOTFOUND") || causeMessage.includes("DNS")) {
+            throw new ApiError("Unable to resolve the API hostname.", {
+              method,
+              path,
+              hint: "Verify your network connection and DNS configuration.",
+              cause: error,
+            });
           }
+          if (causeMessage.includes("ETIMEDOUT") || causeMessage.includes("timeout")) {
+            throw new ApiError("The request to the API timed out.", {
+              method,
+              path,
+              hint: "Try again in a few moments or check your network speed.",
+              cause: error,
+            });
+          }
+
+          throw new ApiError(`Network error while calling ${requestLabel}: ${causeMessage}`, {
+            method,
+            path,
+            cause: error,
+          });
         }
 
-        throw new ApiError(errorMessage, response.status, errorData);
+        throw new ApiError(`Unknown error occurred while calling ${requestLabel}`, {
+          method,
+          path,
+          cause: error,
+        });
       }
-
-      // Handle 204 No Content responses
-      if (response.status === 204) {
-        return {} as T;
-      }
-
-      return await response.json();
-    } catch (error) {
-      if (error instanceof ApiError) {
-        throw error;
-      }
-      if (error instanceof Error) {
-        // Check for common network errors
-        if (error.message.includes("fetch failed") || error.message.includes("ECONNREFUSED")) {
-          throw new ApiError(
-            "Failed to connect to API. Please check your internet connection.",
-            undefined,
-            error
-          );
-        }
-        if (error.message.includes("ENOTFOUND")) {
-          throw new ApiError(
-            "Failed to resolve API hostname. Please check your internet connection.",
-            undefined,
-            error
-          );
-        }
-        throw new ApiError(`Network error: ${error.message}`, undefined, error);
-      }
-      throw new ApiError("Unknown error occurred", undefined, error);
     }
-  }
 
   /**
    * List all cloud agents for the authenticated user
