@@ -4,6 +4,15 @@ export type StatusDisplay = {
   color: string;
 };
 
+/**
+ * Convert an agent status string into a display-friendly object.
+ *
+ * @param {string} status - Raw agent status (for example, `RUNNING`).
+ * @returns {StatusDisplay} Symbol, label, and color for the provided status.
+ * @example
+ * getStatusDisplay("FINISHED");
+ * // => { symbol: "✓", label: "Finished", color: "green" }
+ */
 export function getStatusDisplay(status: string): StatusDisplay {
   switch (status) {
     case "CREATING":
@@ -22,7 +31,13 @@ export function getStatusDisplay(status: string): StatusDisplay {
 }
 
 /**
- * Format a date as a relative time string (e.g., "2 hours ago", "just now")
+ * Format a date as a relative time string (for example, "2 hours ago" or "just now").
+ *
+ * @param {string | Date} date - ISO string or Date instance to compare against now.
+ * @returns {string} Human-readable description of how long ago the date was.
+ * @example
+ * getRelativeTime(new Date(Date.now() - 60000));
+ * // => "1 minute ago"
  */
 export function getRelativeTime(date: string | Date): string {
   const now = new Date();

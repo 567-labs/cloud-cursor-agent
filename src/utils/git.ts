@@ -77,6 +77,9 @@ export function parseGitRemoteUrl(url: string): string | null {
  *
  * @param {string} [workingDir=process.cwd()] - Directory to inspect for git metadata.
  * @returns {Promise<GitInfo | null>} Repository URL and ref, or `null` if detection fails.
+ * @example
+ * const info = await detectRepoAndRef();
+ * // => { repository: "https://github.com/org/repo", ref: "main" }
  */
 export async function detectRepoAndRef(
   workingDir: string = process.cwd()
@@ -153,6 +156,9 @@ export async function detectRepoAndRef(
  *
  * @param {string} [workingDir=process.cwd()] - Directory to inspect.
  * @returns {boolean} `true` when the directory appears to be a git repo.
+ * @example
+ * isGitRepository("/workspace");
+ * // => true
  */
 export function isGitRepository(workingDir: string = process.cwd()): boolean {
   const gitDir = join(workingDir, ".git");

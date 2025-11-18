@@ -13,6 +13,15 @@ interface StatusOptions {
   "non-interactive"?: boolean;
 }
 
+/**
+ * Convert an agent status string into a square-bracketed unicode symbol.
+ *
+ * @param {string} status - Agent status such as `RUNNING`.
+ * @returns {string} Symbolized status for plain-text output.
+ * @example
+ * getStatusSymbol("CREATING");
+ * // => "[●]"
+ */
 function getStatusSymbol(status: string): string {
   switch (status) {
     case "CREATING":
@@ -30,6 +39,15 @@ function getStatusSymbol(status: string): string {
   }
 }
 
+/**
+ * Display the status of an agent either interactively or as plain text.
+ *
+ * @param {CommandContext} context - Shared CLI context with the API client.
+ * @param {StatusOptions} options - Agent ID and non-interactive flag.
+ * @returns {Promise<void>} Resolves when UI rendering or printing completes.
+ * @example
+ * await executeStatus(context, { agentId: "bc_abc123", "non-interactive": true });
+ */
 export async function executeStatus(
   context: CommandContext,
   options: StatusOptions
