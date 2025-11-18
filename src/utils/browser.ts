@@ -8,9 +8,13 @@ import { promisify } from "util";
 const execAsync = promisify(exec);
 
 /**
- * Open a URL in the user's default browser
- * @param url The URL to open
- * @throws Error if the browser cannot be opened
+ * Open a URL in the user's default browser using a platform-specific command.
+ *
+ * @param {string} url - Fully qualified URL (for example, `https://example.com`).
+ * @returns {Promise<void>} Resolves when the shell command completes.
+ * @throws {Error} When the browser process cannot be launched.
+ * @example
+ * await openInBrowser("https://docs.context.ai");
  */
 export async function openInBrowser(url: string): Promise<void> {
   const command =

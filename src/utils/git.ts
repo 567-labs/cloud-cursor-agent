@@ -18,11 +18,18 @@ export interface GitInfo {
 }
 
 /**
- * Parse a Git remote URL and normalize it to HTTPS format
+ * Parse a Git remote URL and normalize it to HTTPS format.
+ *
  * Supports:
- * - HTTPS: https://github.com/org/repo.git
- * - SSH: git@github.com:org/repo.git
- * - GitHub short format: github.com/org/repo
+ * - HTTPS: `https://github.com/org/repo.git`
+ * - SSH: `git@github.com:org/repo.git`
+ * - GitHub short format: `github.com/org/repo`
+ *
+ * @param {string} url - Remote URL retrieved from `git config`.
+ * @returns {string | null} Normalized HTTPS URL or `null` when parsing fails.
+ * @example
+ * parseGitRemoteUrl("git@github.com:buildwithcontext/app.git");
+ * // => "https://github.com/buildwithcontext/app"
  */
 export function parseGitRemoteUrl(url: string): string | null {
   if (!url) {
@@ -63,9 +70,13 @@ export function parseGitRemoteUrl(url: string): string | null {
 }
 
 /**
- * Detect repository and ref information from a working directory
- * @param workingDir - The directory to check (defaults to current working directory)
- * @returns Git information or null if not a git repository or detection fails
+ * Detect repository and ref information from a working directory.
+ *
+ * Uses synchronous git commands for reliability, but wraps them in an async API
+ * so the consumer can await the call alongside other async work.
+ *
+ * @param {string} [workingDir=process.cwd()] - Directory to inspect for git metadata.
+ * @returns {Promise<GitInfo | null>} Repository URL and ref, or `null` if detection fails.
  */
 export async function detectRepoAndRef(
   workingDir: string = process.cwd()
@@ -138,7 +149,10 @@ export async function detectRepoAndRef(
 }
 
 /**
- * Check if a directory is a git repository
+ * Check if a directory is a git repository by verifying the `.git` folder exists.
+ *
+ * @param {string} [workingDir=process.cwd()] - Directory to inspect.
+ * @returns {boolean} `true` when the directory appears to be a git repo.
  */
 export function isGitRepository(workingDir: string = process.cwd()): boolean {
   const gitDir = join(workingDir, ".git");
