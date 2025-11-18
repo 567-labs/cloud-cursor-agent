@@ -2,17 +2,19 @@
 
 A React Ink-based CLI tool for managing Cursor Cloud Agents. Launch agents, list them, and view their status directly from your terminal.
 
+## The Story
+
+Offload small tasks that aren't part of your main work thread. This has been really helpful for things like:
+
+- Realizing that some files need extra tests
+- Cleaning up print statements and switching to console logs
+- Reorganizing how you do error handling
+
+Launch agents in parallel to handle these independently while you focus on your core work. Each agent creates its own branch and opens a pull request. Review and merge them later when you're ready, without interrupting your main workflow.
+
 ## Why use this?
 
-This CLI enables **Agent Orchestration**: allowing you (or your agents) to programmatically kick off other parallel agents.
-
-**Example: Managing Large Refactors**
-
-A compelling use case is identifying multiple files that need independent changes (e.g., refactoring to smaller components or adding tests). Instead of one massive 10,000-line pull request, you can use this CLI to:
-
-1.  **Identify** the distinct files or services that need work.
-2.  **Launch** parallel "sub-agents" for each task using this CLI.
-3.  **Receive** smaller, focused PRs that are easier to review.
+This CLI enables **Agent Orchestration**: programmatically offload small tasks to parallel agents so you can focus on your main work thread. Review and merge the pull requests when you're ready.
 
 ## Installing as a CLI Tool
 
@@ -87,12 +89,14 @@ cloud-agent launch --plan <PLAN_FILE>
 bun run cloud-agent.tsx launch --plan <PLAN_FILE>
 ```
 
-This will:
+With a single command, the CLI will:
 
 - Auto-detect the repository and ref from your current git directory
 - Launch the agent in the background
 - Output only the agent URL
 - Exit immediately (non-blocking)
+
+The agent starts working immediately. You can continue with other tasks, launch more agents, or watch its progress—the choice is yours.
 
 **Options:**
 
@@ -189,7 +193,9 @@ bun run cloud-agent.tsx status bc_abc123 --non-interactive
 
 ### Watch Agent (Block Until Complete)
 
-Watch one or more agents and block until they reach a terminal state (FINISHED, FAILED, or CANCELLED). Useful for chaining commands in scripts:
+Watch agents until they complete. Useful for scripts that need to wait for small fixes to finish before proceeding.
+
+Watch one or more agents and block until they reach a terminal state (FINISHED, FAILED, or CANCELLED):
 
 ```bash
 # Watch a single agent
@@ -213,11 +219,11 @@ bun run cloud-agent.tsx watch <agent-id> --interval 5000
 **Example workflow:**
 
 ```bash
-# Single agent
+# Single agent: launch and wait
 AGENT_ID=$(bun run cloud-agent.tsx launch --plan plan.md)
 bun run cloud-agent.tsx watch $AGENT_ID --verbose && echo "Agent completed successfully!"
 
-# Multiple agents
+# Multiple agents: launch them all, then watch them all
 AGENT_1=$(bun run cloud-agent.tsx launch --plan plan1.md)
 AGENT_2=$(bun run cloud-agent.tsx launch --plan plan2.md)
 bun run cloud-agent.tsx watch $AGENT_1 $AGENT_2 --verbose
