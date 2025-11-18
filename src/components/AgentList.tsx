@@ -9,6 +9,21 @@ import { CloudAgentsApiClient, ApiError } from "../api/client.js";
 import { Spinner } from "./Spinner.js";
 import { openInBrowser } from "../utils/browser.js";
 import { getStatusDisplay, getRelativeTime } from "../utils/status.js";
+import {
+  groupAgentsByRepository,
+  groupAgentsByStatus,
+  getStatusDisplayOrder,
+  normalizeRepositoryUrl,
+} from "../utils/grouping.js";
+import {
+  calculateAvailableHeight,
+  calculateColumnLayout,
+  clampWidth,
+  getLayoutBreakpoint,
+  getLayoutLabel,
+  getSeparator,
+  type LayoutBreakpoint,
+} from "../utils/layout.js";
 import type { Agent, AgentStatus } from "../api/schemas.js";
 
 interface AgentListProps {
@@ -32,108 +47,6 @@ function truncate(str: string, maxLength: number): string {
   }
   return str.slice(0, Math.max(0, maxLength - 3)) + "...";
 }
-
-function clampWidth(width: number, min: number = 8): number {
-  return Math.max(min, width);
-}
-
-function getSeparator(width: number, minLength: number = 5): string {
-  return "─".repeat(Math.max(minLength, width));
-}
-
-const DEFAULT_STATUS_ORDER: ReadonlyArray<string> = [
-  "RUNNING",
-  "CREATING",
-  "FINISHED",
-  "FAILED",
-  "CANCELLED",
-];
-
-type LayoutBreakpoint = "wide" | "medium" | "compact";
-
-function getLayoutBreakpoint(width: number): LayoutBreakpoint {
-  if (width >= 100) return "wide";
-  if (width >= 70) return "medium";
-  return "compact";
-}
-
-function getLayoutLabel(breakpoint: LayoutBreakpoint): string {
-  switch (breakpoint) {
-    case "wide":
-      return "Wide layout";
-    case "medium":
-      return "Medium layout";
-    case "compact":
-      return "Compact layout";
-  }
-}
-
-function normalizeRepositoryUrl(url: string): string {
-  if (!url) return "";
-  return url
-    .replace(/^https?:\/\//, "") // Remove http:// or https:// prefix
-    .replace(/\.git$/, "")
-    .replace(/\/$/, "") // Remove trailing slash
-    .toLowerCase()
-    .trim();
-}
-
-function groupAgentsByStatus(agents: Agent[]): Map<string, Agent[]> {
-  const groups = new Map<string, Agent[]>();
-  
-  // Initialize groups for known statuses so they preserve order later
-  DEFAULT_STATUS_ORDER.forEach(status => {
-    groups.set(status, []);
-  });
-  
-  // Group agents
-  agents.forEach(agent => {
-    const status = agent.status;
-    if (!groups.has(status)) {
-      groups.set(status, []);
-    }
-    groups.get(status)!.push(agent);
-  });
-  
-  return groups;
-}
-
-function getStatusDisplayOrder(groups: Map<string, Agent[]>): string[] {
-  const knownStatusesWithData = DEFAULT_STATUS_ORDER.filter(
-    (status) => (groups.get(status)?.length ?? 0) > 0
-  );
-  const extraStatuses = Array.from(groups.entries())
-    .filter(
-      ([status, items]) =>
-        items.length > 0 && !DEFAULT_STATUS_ORDER.includes(status)
-    )
-    .map(([status]) => status)
-    .sort();
-  return [...knownStatusesWithData, ...extraStatuses];
-}
-
-function groupAgentsByRepository(agents: Agent[]): Map<string, Agent[]> {
-  const groups = new Map<string, Agent[]>();
-  
-  // Group agents by repository
-  agents.forEach(agent => {
-    const repo = normalizeRepositoryUrl(agent.source.repository);
-    if (!groups.has(repo)) {
-      groups.set(repo, []);
-    }
-    groups.get(repo)!.push(agent);
-  });
-  
-  // Sort repositories alphabetically
-  const sortedRepos = Array.from(groups.keys()).sort();
-  const sortedGroups = new Map<string, Agent[]>();
-  sortedRepos.forEach(repo => {
-    sortedGroups.set(repo, groups.get(repo)!);
-  });
-  
-  return sortedGroups;
-}
-
 
 export function AgentList({ apiClient, onBack, repositoryFilter }: AgentListProps) {
   const [agents, setAgents] = useState<Agent[]>([]);
@@ -204,7 +117,12 @@ export function AgentList({ apiClient, onBack, repositoryFilter }: AgentListProp
   const chromePadding = 4; // Padding for borders and margins
   
   const availableHeight = useMemo(() => {
-    return Math.max(5, terminalHeight - headerHeight - footerHeight - paddingHeight);
+    return calculateAvailableHeight(
+      terminalHeight,
+      headerHeight,
+      footerHeight,
+      paddingHeight,
+    );
   }, [terminalHeight]);
   
   const agentsPerView = useMemo(() => {
@@ -225,29 +143,7 @@ export function AgentList({ apiClient, onBack, repositoryFilter }: AgentListProp
   
   // Column distribution based on breakpoint
   const columnLayout = useMemo(() => {
-    const width = availableContentWidth;
-    if (layoutBreakpoint === "wide") {
-      // >= 100 columns: 45% name, 35% repo, remainder spacing
-      return {
-        nameWidth: Math.floor(width * 0.45),
-        repoWidth: Math.floor(width * 0.35),
-        stacked: false,
-      };
-    } else if (layoutBreakpoint === "medium") {
-      // 70-100: 60% name, 40% repo
-      return {
-        nameWidth: Math.floor(width * 0.60),
-        repoWidth: Math.floor(width * 0.40),
-        stacked: false,
-      };
-    } else {
-      // < 70: stack repository and URLs beneath name
-      return {
-        nameWidth: width,
-        repoWidth: width,
-        stacked: true,
-      };
-    }
+    return calculateColumnLayout(availableContentWidth, layoutBreakpoint);
   }, [availableContentWidth, layoutBreakpoint]);
   
   // Filter agents by status if filter is active
