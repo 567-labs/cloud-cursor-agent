@@ -5,12 +5,15 @@
 import React from "react";
 import { render } from "ink";
 import type { CommandContext } from "../cli/types.js";
+import type { Agent } from "../api/schemas.js";
 import { detectRepoAndRef } from "../utils/git.js";
 import { AgentList } from "../components/AgentList.js";
+import { fuzzyMatchAny } from "../utils/search.js";
 
 interface ListOptions {
   "non-interactive"?: boolean;
   dir?: string;
+  search?: string;
 }
 
 /**
@@ -72,7 +75,8 @@ export async function executeList(
   options: ListOptions
 ): Promise<void> {
   const { apiClient, workingDir } = context;
-  const { "non-interactive": nonInteractive, dir } = options;
+  const { "non-interactive": nonInteractive, dir, search } = options;
+  const searchQuery = search?.trim() ?? "";
 
   // Detect repository for filtering
   const workingDirectory = dir || workingDir;
@@ -82,20 +86,50 @@ export async function executeList(
   if (nonInteractive) {
     // Non-interactive mode: output plain text
     try {
-      const response = await apiClient.listAgents(100); // Get up to 100 agents
+      const fetchLimit = 100;
+      const maxSearchResults = 1000;
+      const searchMode = searchQuery.length > 0;
+      const normalizedFilter = repositoryFilter ? normalizeRepo(repositoryFilter) : null;
+      let agents: Agent[] = [];
+      let cursor: string | undefined;
+      let nextCursorToken: string | undefined;
 
-      // Filter by repository if detected
-      let agents = response.agents;
-      if (repositoryFilter) {
-        const normalizedFilter = normalizeRepo(repositoryFilter);
-        agents = response.agents.filter((agent) => {
-          return normalizeRepo(agent.source.repository) === normalizedFilter;
-        });
+      while (true) {
+        const response = await apiClient.listAgents(fetchLimit, cursor);
+        nextCursorToken = response.nextCursor;
+
+        let pageAgents = response.agents;
+        if (normalizedFilter) {
+          pageAgents = pageAgents.filter(
+            (agent) => normalizeRepo(agent.source.repository) === normalizedFilter,
+          );
+        }
+        if (searchMode) {
+          pageAgents = pageAgents.filter((agent) =>
+            fuzzyMatchAny(searchQuery, [agent.name, agent.summary ?? ""]),
+          );
+        }
+
+        agents = agents.concat(pageAgents);
+        cursor = response.nextCursor;
+
+        if (
+          !searchMode ||
+          !cursor ||
+          response.agents.length === 0 ||
+          agents.length >= maxSearchResults
+        ) {
+          break;
+        }
       }
 
       if (agents.length === 0) {
-        if (repositoryFilter) {
+        if (repositoryFilter && searchMode) {
+          console.log(`No agents for ${repositoryFilter} match "${searchQuery}".`);
+        } else if (repositoryFilter) {
           console.log(`No agents found for ${repositoryFilter}.`);
+        } else if (searchMode) {
+          console.log(`No agents match "${searchQuery}".`);
         } else {
           console.log("No agents found.");
         }
@@ -105,8 +139,14 @@ export async function executeList(
         return;
       }
 
-      if (repositoryFilter) {
+      if (repositoryFilter && searchMode) {
+        console.log(
+          `Found ${agents.length} agent(s) for ${repositoryFilter} matching "${searchQuery}":\n`,
+        );
+      } else if (repositoryFilter) {
         console.log(`Found ${agents.length} agent(s) for ${repositoryFilter}:\n`);
+      } else if (searchMode) {
+        console.log(`Found ${agents.length} agent(s) matching "${searchQuery}":\n`);
       } else {
         console.log(`Found ${agents.length} agent(s):\n`);
       }
@@ -129,7 +169,7 @@ export async function executeList(
         }
         console.log("");
       }
-      if (response.nextCursor && !repositoryFilter) {
+      if (nextCursorToken && !repositoryFilter) {
         console.log("(More agents available - use interactive mode to paginate)");
       }
     } catch (error) {
@@ -149,6 +189,7 @@ export async function executeList(
       apiClient={apiClient}
       onBack={() => process.exit(0)}
       repositoryFilter={repositoryFilter}
+      initialSearchQuery={searchQuery || undefined}
     />
   );
   await waitUntilExit();

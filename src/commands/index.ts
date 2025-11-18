@@ -43,13 +43,14 @@ export function registerCommands(program: Command, context: CommandContext): voi
       await executeLaunch(context, options);
     });
 
-  // List command
-  program
-    .command("list")
-    .description("List all agents")
-    .option("--non-interactive", "Disable interactive mode (output plain text)")
-    .option("--no-interactive", "Disable interactive mode (output plain text)")
-    .option("--dir <path>", "Working directory for git detection")
+    // List command
+    program
+      .command("list")
+      .description("List all agents")
+      .option("--non-interactive", "Disable interactive mode (output plain text)")
+      .option("--no-interactive", "Disable interactive mode (output plain text)")
+      .option("--dir <path>", "Working directory for git detection")
+      .option("--search <query>", "Search agents by name or summary (non-interactive mode)")
     .action(async (options) => {
       // Normalize non-interactive flag (Commander.js converts --non-interactive to nonInteractive)
       const normalizedOptions = {
