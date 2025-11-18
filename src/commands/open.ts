@@ -3,18 +3,13 @@
  */
 
 import { ApiError } from "../api/client.js";
-import type { CommandContext } from "../cli/types.js";
+import type { CommandContext, OpenCommandOptions } from "../cli/types.js";
 import { validateAgentId } from "../utils/validation.js";
 import { openInBrowser } from "../utils/browser.js";
 
-interface OpenOptions {
-  agentId: string;
-  pr?: boolean;
-}
-
 export async function executeOpen(
   context: CommandContext,
-  options: OpenOptions
+  options: OpenCommandOptions
 ): Promise<void> {
   const { apiClient } = context;
   const { agentId, pr = false } = options;

@@ -7,7 +7,7 @@ import React, { useEffect, useState } from "react";
 import { Box, Text, useInput } from "ink";
 import { CloudAgentsApiClient, ApiError } from "../api/client.js";
 import { Spinner } from "./Spinner.js";
-import type { Agent } from "../api/schemas.js";
+import type { Agent } from "../types/agent.js";
 import { getStatusDisplay } from "../utils/status.js";
 
 interface AgentStatusProps {

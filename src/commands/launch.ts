@@ -3,7 +3,7 @@
  */
 
 import { ApiError } from "../api/client.js";
-import type { CommandContext } from "../cli/types.js";
+import type { CommandContext, LaunchCommandOptions } from "../cli/types.js";
 import { detectRepoAndRef, isGitRepository } from "../utils/git.js";
 import { readPlanFile } from "../utils/file.js";
 import { selectModel, isValidModel, MODELS } from "../utils/model.js";
@@ -14,21 +14,12 @@ import {
   validateBranchName,
   validateRef,
 } from "../utils/validation.js";
-
-interface LaunchOptions {
-  plan: string;
-  repo?: string;
-  ref?: string;
-  branch?: string;
-  "no-auto-pr"?: boolean;
-  model?: string;
-  verbose?: boolean;
-  dir?: string;
-}
+import type { LaunchAgentRequest } from "../types/api.js";
+import type { LaunchRuntimeConfig } from "../types/config.js";
 
 export async function executeLaunch(
   context: CommandContext,
-  options: LaunchOptions
+  options: LaunchCommandOptions
 ): Promise<void> {
   const { apiClient, workingDir } = context;
   const {
@@ -137,24 +128,6 @@ export async function executeLaunch(
         console.error("");
       }
 
-      const request: {
-        prompt: { text: string };
-        source: { repository: string; ref: string };
-        target?: {
-          branchName?: string;
-          autoCreatePr?: boolean;
-        };
-        model?: string;
-      } = {
-        prompt: {
-          text: planContent,
-        },
-        source: {
-          repository,
-          ref: gitRef,
-        },
-      };
-
       // Validate branch name if provided
       if (branch) {
         const branchValidation = validateBranchName(branch);
@@ -168,15 +141,13 @@ export async function executeLaunch(
       // auto-pr is default unless --no-auto-pr is specified
       const shouldCreatePr = !noAutoPr;
 
-      if (branch || shouldCreatePr) {
-        request.target = {};
-        if (branch) {
-          request.target.branchName = branch;
-        }
-        if (shouldCreatePr) {
-          request.target.autoCreatePr = true;
-        }
-      }
+      const runtimeConfig: LaunchRuntimeConfig = {
+        repository,
+        ref: gitRef,
+        branchName: branch,
+        autoCreatePr: shouldCreatePr,
+        model: "",
+      };
 
       // Determine model to use
       let selectedModel: string;
@@ -195,7 +166,28 @@ export async function executeLaunch(
           console.error(`Model: ${selectedModel} (auto-selected)`);
         }
       }
-      request.model = selectedModel;
+      runtimeConfig.model = selectedModel;
+
+      const request: LaunchAgentRequest = {
+        prompt: {
+          text: planContent,
+        },
+        source: {
+          repository: runtimeConfig.repository,
+          ref: runtimeConfig.ref,
+        },
+        model: runtimeConfig.model,
+      };
+
+      if (runtimeConfig.branchName || runtimeConfig.autoCreatePr) {
+        request.target = {};
+        if (runtimeConfig.branchName) {
+          request.target.branchName = runtimeConfig.branchName;
+        }
+        if (runtimeConfig.autoCreatePr) {
+          request.target.autoCreatePr = true;
+        }
+      }
 
       const agent = await apiClient.launchAgent(request);
 

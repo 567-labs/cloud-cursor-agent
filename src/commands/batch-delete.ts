@@ -3,19 +3,10 @@
  */
 
 import { ApiError } from "../api/client.js";
-import type { CommandContext } from "../cli/types.js";
+import type { CommandContext, BatchDeleteCommandOptions } from "../cli/types.js";
 import { detectRepoAndRef } from "../utils/git.js";
-import type { AgentStatus } from "../api/schemas.js";
+import type { AgentStatus } from "../types/agent.js";
 import { getStatusDisplay } from "../utils/status.js";
-
-interface BatchDeleteOptions {
-  status?: AgentStatus | "terminal";
-  repo?: string;
-  "dry-run"?: boolean;
-  force?: boolean;
-  limit?: number;
-  dir?: string;
-}
 
 function normalizeRepo(url: string): string {
   if (!url) return "";
@@ -31,7 +22,7 @@ const TERMINAL_STATUSES: AgentStatus[] = ["FINISHED", "FAILED", "CANCELLED"];
 
 export async function executeBatchDelete(
   context: CommandContext,
-  options: BatchDeleteOptions
+  options: BatchDeleteCommandOptions
 ): Promise<void> {
   const { apiClient, workingDir } = context;
   const {

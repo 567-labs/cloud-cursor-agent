@@ -2,7 +2,7 @@
  * Input validation utilities
  */
 
-export type ValidationResult = { valid: true } | { valid: false; error: string };
+import type { ValidationResult } from "../types/validation.js";
 
 const GITHUB_OWNER_REGEX = /^[A-Za-z0-9](?:[A-Za-z0-9._-]{0,38})$/;
 const GITHUB_REPO_REGEX = /^[A-Za-z0-9](?:[A-Za-z0-9._-]{0,99})$/;

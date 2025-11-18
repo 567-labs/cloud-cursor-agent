@@ -9,7 +9,7 @@ import { CloudAgentsApiClient, ApiError } from "../api/client.js";
 import { Spinner } from "./Spinner.js";
 import { openInBrowser } from "../utils/browser.js";
 import { getStatusDisplay, getRelativeTime } from "../utils/status.js";
-import type { Agent, AgentStatus } from "../api/schemas.js";
+import type { Agent, AgentStatus } from "../types/agent.js";
 
 interface AgentListProps {
   apiClient: CloudAgentsApiClient;

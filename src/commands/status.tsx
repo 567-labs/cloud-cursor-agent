@@ -4,14 +4,9 @@
 
 import React from "react";
 import { render } from "ink";
-import type { CommandContext } from "../cli/types.js";
+import type { CommandContext, StatusCommandOptions } from "../cli/types.js";
 import { AgentStatus } from "../components/AgentStatus.js";
 import { validateAgentId } from "../utils/validation.js";
-
-interface StatusOptions {
-  agentId: string;
-  "non-interactive"?: boolean;
-}
 
 function getStatusSymbol(status: string): string {
   switch (status) {
@@ -32,7 +27,7 @@ function getStatusSymbol(status: string): string {
 
 export async function executeStatus(
   context: CommandContext,
-  options: StatusOptions
+  options: StatusCommandOptions
 ): Promise<void> {
   const { apiClient } = context;
   const { agentId, "non-interactive": nonInteractive } = options;

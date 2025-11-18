@@ -3,17 +3,12 @@
  */
 
 import { ApiError } from "../api/client.js";
-import type { CommandContext } from "../cli/types.js";
+import type { CommandContext, ConversationCommandOptions } from "../cli/types.js";
 import { validateAgentId } from "../utils/validation.js";
-
-interface ConversationOptions {
-  agentId: string;
-  "non-interactive"?: boolean;
-}
 
 export async function executeConversation(
   context: CommandContext,
-  options: ConversationOptions
+  options: ConversationCommandOptions
 ): Promise<void> {
   const { apiClient } = context;
   const { agentId, "non-interactive": nonInteractive } = options;

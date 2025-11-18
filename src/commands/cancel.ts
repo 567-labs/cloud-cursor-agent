@@ -3,16 +3,12 @@
  */
 
 import { ApiError } from "../api/client.js";
-import type { CommandContext } from "../cli/types.js";
+import type { CommandContext, CancelCommandOptions } from "../cli/types.js";
 import { validateAgentId } from "../utils/validation.js";
-
-interface CancelOptions {
-  agentId: string;
-}
 
 export async function executeCancel(
   context: CommandContext,
-  options: CancelOptions
+  options: CancelCommandOptions
 ): Promise<void> {
   const { apiClient } = context;
   const { agentId } = options;

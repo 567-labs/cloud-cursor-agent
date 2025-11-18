@@ -4,14 +4,10 @@
 
 import React from "react";
 import { render } from "ink";
-import type { CommandContext } from "../cli/types.js";
+import type { CommandContext, ListCommandOptions } from "../cli/types.js";
 import { detectRepoAndRef } from "../utils/git.js";
 import { AgentList } from "../components/AgentList.js";
-
-interface ListOptions {
-  "non-interactive"?: boolean;
-  dir?: string;
-}
+import type { RepositoryFilterConfig } from "../types/config.js";
 
 function getStatusSymbol(status: string): string {
   switch (status) {
@@ -42,7 +38,7 @@ function normalizeRepo(url: string): string {
 
 export async function executeList(
   context: CommandContext,
-  options: ListOptions
+  options: ListCommandOptions
 ): Promise<void> {
   const { apiClient, workingDir } = context;
   const { "non-interactive": nonInteractive, dir } = options;
@@ -50,7 +46,11 @@ export async function executeList(
   // Detect repository for filtering
   const workingDirectory = dir || workingDir;
   const gitInfo = await detectRepoAndRef(workingDirectory);
-  const repositoryFilter = gitInfo?.repository;
+  const filterConfig: RepositoryFilterConfig = {
+    workingDir: workingDirectory,
+    repository: gitInfo?.repository,
+  };
+  const repositoryFilter = filterConfig.repository;
 
   if (nonInteractive) {
     // Non-interactive mode: output plain text

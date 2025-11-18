@@ -3,17 +3,17 @@
  * Documentation: https://cursor.com/docs/cloud-agent/api/endpoints
  */
 
+import type { Agent, AgentConversation } from "../types/agent.js";
 import type {
-  Agent,
   ListAgentsResponse,
   LaunchAgentRequest,
-  AgentConversation,
   ApiKeyInfo,
   ModelsResponse,
   ListRepositoriesResponse,
   DeleteAgentResponse,
   AddFollowupResponse,
-} from "./schemas.js";
+  FollowupPromptPayload,
+} from "../types/api.js";
 
 /**
  * API client error
@@ -221,10 +221,7 @@ export class CloudAgentsApiClient {
    * Add a follow-up instruction to an existing cloud agent
    * POST /v0/agents/{id}/followup
    */
-  async addFollowup(
-    id: string,
-    prompt: { text: string; images?: Array<{ data: string; dimension: { width: number; height: number } }> }
-  ): Promise<AddFollowupResponse> {
+  async addFollowup(id: string, prompt: FollowupPromptPayload): Promise<AddFollowupResponse> {
     return this.request<AddFollowupResponse>(
       "POST",
       `/v0/agents/${id}/followup`,

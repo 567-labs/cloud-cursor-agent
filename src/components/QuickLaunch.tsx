@@ -7,7 +7,7 @@
 import React, { useEffect, useState } from "react";
 import { Box, Text } from "ink";
 import { CloudAgentsApiClient, ApiError } from "../api/client.js";
-import type { LaunchAgentRequest } from "../api/schemas.js";
+import type { LaunchAgentRequest } from "../types/api.js";
 
 interface QuickLaunchProps {
   /** API client instance */

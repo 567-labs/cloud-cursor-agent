@@ -7,15 +7,7 @@ import { execSync } from "child_process";
 import { existsSync } from "fs";
 import { join } from "path";
 
-/**
- * Result of git detection
- */
-export interface GitInfo {
-  /** Repository URL (normalized to HTTPS format) */
-  repository: string;
-  /** Current branch, tag, or commit hash */
-  ref: string;
-}
+import type { GitInfo } from "../types/config.js";
 
 /**
  * Parse a Git remote URL and normalize it to HTTPS format.

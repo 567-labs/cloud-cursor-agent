@@ -3,19 +3,14 @@
  */
 
 import { ApiError } from "../api/client.js";
-import type { CommandContext } from "../cli/types.js";
+import type { CommandContext, FollowupCommandOptions } from "../cli/types.js";
 import { validateAgentId } from "../utils/validation.js";
 import { readPlanFile } from "../utils/file.js";
 import { validatePlanContent } from "../utils/validation.js";
 
-interface FollowupOptions {
-  agentId: string;
-  prompt: string;
-}
-
 export async function executeFollowup(
   context: CommandContext,
-  options: FollowupOptions
+  options: FollowupCommandOptions
 ): Promise<void> {
   const { apiClient } = context;
   const { agentId, prompt } = options;

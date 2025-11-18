@@ -3,17 +3,12 @@
  */
 
 import { ApiError } from "../api/client.js";
-import type { CommandContext } from "../cli/types.js";
+import type { CommandContext, DeleteCommandOptions } from "../cli/types.js";
 import { validateAgentId } from "../utils/validation.js";
-
-interface DeleteOptions {
-  agentId: string;
-  force?: boolean;
-}
 
 export async function executeDelete(
   context: CommandContext,
-  options: DeleteOptions
+  options: DeleteCommandOptions
 ): Promise<void> {
   const { apiClient } = context;
   const { agentId, force = false } = options;
