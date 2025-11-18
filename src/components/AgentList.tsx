@@ -3,12 +3,13 @@
  * Displays a list of agents in a table format
  */
 
-import React, { useCallback, useEffect, useState, useMemo, useRef } from "react";
+import React, { useCallback, useEffect, useState, useMemo, useRef, type ReactNode } from "react";
 import { Box, Text, useInput, useStdout } from "ink";
 import { CloudAgentsApiClient, ApiError } from "../api/client.js";
 import { Spinner } from "./Spinner.js";
 import { openInBrowser } from "../utils/browser.js";
 import { getStatusDisplay, getRelativeTime } from "../utils/status.js";
+import { getBorderedBoxWidth } from "../utils/layout.js";
 import type { Agent, AgentStatus } from "../api/schemas.js";
 
 interface AgentListProps {
@@ -38,7 +39,80 @@ function clampWidth(width: number, min: number = 8): number {
 }
 
 function getSeparator(width: number, minLength: number = 5): string {
-  return "─".repeat(Math.max(minLength, width));
+  const dashChar = "╌";
+  return dashChar.repeat(Math.max(minLength, width));
+}
+
+function wrapLine(text: string, maxWidth: number): string[] {
+  if (maxWidth <= 0) {
+    return [text];
+  }
+  const words = text.trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) {
+    return [""];
+  }
+  const lines: string[] = [];
+  let currentLine = "";
+  
+  words.forEach((word) => {
+    if (word.length > maxWidth) {
+      if (currentLine) {
+        lines.push(currentLine);
+        currentLine = "";
+      }
+      for (let i = 0; i < word.length; i += maxWidth) {
+        lines.push(word.slice(i, i + maxWidth));
+      }
+      return;
+    }
+    
+    const candidate = currentLine ? `${currentLine} ${word}` : word;
+    if (candidate.length > maxWidth) {
+      if (currentLine) {
+        lines.push(currentLine);
+      }
+      currentLine = word;
+    } else {
+      currentLine = candidate;
+    }
+  });
+  
+  if (currentLine) {
+    lines.push(currentLine);
+  }
+  
+  return lines.length > 0 ? lines : [""];
+}
+
+function wrapTextBlock(text: string, maxWidth: number): string[] {
+  if (!text) {
+    return [];
+  }
+  
+  const paragraphs = text.split(/\r?\n+/);
+  const lines: string[] = [];
+  
+  paragraphs.forEach((paragraph, index) => {
+    const trimmed = paragraph.trim();
+    if (trimmed === "") {
+      if (lines.length === 0 || lines[lines.length - 1] !== "") {
+        lines.push("");
+      }
+      return;
+    }
+    const wrapped = wrapLine(trimmed, maxWidth);
+    lines.push(...wrapped);
+    if (index < paragraphs.length - 1) {
+      lines.push("");
+    }
+  });
+  
+  // Remove trailing blank lines
+  while (lines.length > 0 && lines[lines.length - 1] === "") {
+    lines.pop();
+  }
+  
+  return lines;
 }
 
 const DEFAULT_STATUS_ORDER: ReadonlyArray<string> = [
@@ -693,12 +767,6 @@ export function AgentList({ apiClient, onBack, repositoryFilter }: AgentListProp
   const paginationStart = prevCursors.length * agentsPerView + 1;
   const paginationEnd = paginationStart + filteredAgents.length - 1;
   
-  // Safe width for bordered boxes - default to undefined if too narrow
-  const getBorderedBoxWidth = (baseWidth: number): number | undefined => {
-    const computed = clampWidth(baseWidth, 10);
-    return computed >= 10 ? computed : undefined;
-  };
-
   const paginationHintParts: string[] = [];
   if (prevCursors.length > 0) {
     paginationHintParts.push("← Prev");
@@ -738,143 +806,188 @@ export function AgentList({ apiClient, onBack, repositoryFilter }: AgentListProp
     const nameMaxWidth = clampWidth(columnLayout.nameWidth);
     const repoMaxWidth = clampWidth(columnLayout.repoWidth);
     
-    // URL truncation: allow wrapping below 60 columns, otherwise truncate
-    const urlMaxWidth = terminalWidth >= 60 
-      ? clampWidth(terminalWidth - 15)
-      : undefined; // undefined allows wrapping
+    const cardBorderWidth = getBorderedBoxWidth(availableContentWidth);
+    const showSelectionBorder = isSelected && cardBorderWidth > 0;
+    const cardContentWidth = showSelectionBorder
+      ? Math.max(12, cardBorderWidth - 2)
+      : availableContentWidth;
+    const nestedIndent = columnLayout.stacked ? 2 : 4;
+    const computeWrapWidth = (offset: number): number => {
+      const width = Math.floor(cardContentWidth - offset);
+      if (width <= 0) {
+        return Math.max(4, Math.floor(cardContentWidth / 2));
+      }
+      return Math.max(4, width);
+    };
+    const linkWrapWidth = computeWrapWidth(nestedIndent + 2);
+    const detailWrapWidth = computeWrapWidth(nestedIndent);
+    const summaryWrapWidth = computeWrapWidth(nestedIndent);
     
     // Status transition indicator
     const transitionIndicator = hasStatusTransition ? " ⚡" : "";
     
+    const wrapLines = (text: string, width: number) => {
+      const lines = wrapTextBlock(text, width);
+      return lines.length > 0 ? lines : [text];
+    };
+    
+    const previewLines = wrapLines(agent.target.url, linkWrapWidth);
+    const prLines = agent.target.prUrl ? wrapLines(agent.target.prUrl, linkWrapWidth) : [];
+    const repositoryLines = wrapLines(agent.source.repository, detailWrapWidth);
+    const summaryLines = agent.summary ? wrapLines(agent.summary, summaryWrapWidth) : [];
+    
+    const renderDetailField = (
+      label: string,
+      value: ReactNode,
+      options?: { color?: string; marginBottom?: number }
+    ) => (
+      <Box flexDirection="column" marginBottom={options?.marginBottom ?? 1}>
+        <Text color="gray" dimColor>
+          {label}
+        </Text>
+        <Box marginLeft={2}>
+          {typeof value === "string" ? (
+            <Text color={options?.color}>{value}</Text>
+          ) : (
+            value
+          )}
+        </Box>
+      </Box>
+    );
+    
     const agentContent = (
       <Box flexDirection="column">
-        {/* Main agent row */}
-        {columnLayout.stacked ? (
-          // Stacked layout for narrow terminals
-          <Box flexDirection="column">
-            <Box>
-              <Text color={isSelected ? "cyan" : statusDisplay.color}>
-                {statusDisplay.symbol}{transitionIndicator} {isExpanded ? agent.name : truncate(agent.name, nameMaxWidth)}
-              </Text>
-            </Box>
-            <Box marginTop={0}>
-              <Text color={isSelected ? "cyan" : undefined}>
-                {isExpanded ? agent.source.repository : truncate(compactRepo, repoMaxWidth)}
-              </Text>
-            </Box>
+        <Box
+          flexDirection={columnLayout.stacked ? "column" : "row"}
+          marginBottom={1}
+        >
+          <Box>
+            <Text color={isSelected ? "cyan" : statusDisplay.color}>
+              {statusDisplay.symbol}
+              {transitionIndicator}{" "}
+              {isExpanded ? agent.name : truncate(agent.name, nameMaxWidth)}
+            </Text>
           </Box>
-        ) : (
-          // Side-by-side layout for wider terminals
-          <Box flexDirection="row">
-            <Box>
-              <Text color={isSelected ? "cyan" : statusDisplay.color}>
-                {statusDisplay.symbol}{transitionIndicator} {isExpanded ? agent.name : truncate(agent.name, nameMaxWidth)}
-              </Text>
-            </Box>
+          {!columnLayout.stacked && (
             <Box marginLeft={2}>
               <Text color={isSelected ? "cyan" : undefined}>
-                {isExpanded ? agent.source.repository : truncate(compactRepo, repoMaxWidth)}
+                {isExpanded
+                  ? agent.source.repository
+                  : truncate(compactRepo, repoMaxWidth)}
               </Text>
             </Box>
-          </Box>
-        )}
-        
-        {/* Preview URL */}
-        <Box marginLeft={columnLayout.stacked ? 0 : 3} marginTop={columnLayout.stacked ? 0 : 0}>
-          <Text color="cyan" dimColor>
-            Preview: {urlMaxWidth ? truncate(agent.target.url, urlMaxWidth) : agent.target.url}
-          </Text>
+          )}
         </Box>
-        
-        {/* PR URL if available */}
-        {agent.target.prUrl && (
-          <Box marginLeft={columnLayout.stacked ? 0 : 3} marginTop={0}>
-            <Text color="cyan" dimColor>
-              PR: {urlMaxWidth ? truncate(agent.target.prUrl, clampWidth(terminalWidth - 8)) : agent.target.prUrl}
+        {columnLayout.stacked && (
+          <Box marginBottom={1}>
+            <Text color={isSelected ? "cyan" : undefined}>
+              {isExpanded
+                ? agent.source.repository
+                : truncate(compactRepo, repoMaxWidth)}
             </Text>
           </Box>
         )}
         
-        {/* Expanded details */}
+        <Box flexDirection="column" marginBottom={1}>
+          <Text color="gray" dimColor>
+            Preview
+          </Text>
+          {previewLines.map((line, index) => (
+            <Box key={`preview-${agent.id}-${index}`} marginLeft={2}>
+              <Text color="cyan" dimColor={!isExpanded}>
+                {line}
+              </Text>
+            </Box>
+          ))}
+        </Box>
+        
+        {prLines.length > 0 && (
+          <Box flexDirection="column" marginBottom={1}>
+            <Text color="gray" dimColor>
+              Pull Request
+            </Text>
+            {prLines.map((line, index) => (
+              <Box key={`pr-${agent.id}-${index}`} marginLeft={2}>
+                <Text color="cyan">{line}</Text>
+              </Box>
+            ))}
+          </Box>
+        )}
+        
         {isExpanded && (
-          <Box marginLeft={columnLayout.stacked ? 0 : 2} marginTop={1} flexDirection="column">
-            <Box marginTop={0} marginBottom={1}>
-              <Text color="gray">{getSeparator(Math.max(20, separatorWidth - 8))}</Text>
+          <Box
+            marginTop={1}
+            flexDirection="column"
+            paddingX={columnLayout.stacked ? 0 : 1}
+            paddingY={1}
+          >
+            <Box marginBottom={1}>
+              <Text color="gray">
+                {getSeparator(Math.max(10, detailWrapWidth))}
+              </Text>
             </Box>
-            <Box marginTop={0} flexDirection="column">
-              <Box marginBottom={1}>
-                <Text>
-                  <Text color="gray" dimColor>Agent ID: </Text>
-                  <Text>{agent.id}</Text>
-                </Text>
+            {renderDetailField("Agent ID", agent.id)}
+            {renderDetailField("Status", `${statusDisplay.symbol} ${statusDisplay.label}`, {
+              color: statusDisplay.color,
+            })}
+            {renderDetailField(
+              "Repository",
+              <Box flexDirection="column">
+                {repositoryLines.map((line, index) => (
+                  <Text key={`repo-${agent.id}-${index}`}>{line}</Text>
+                ))}
               </Box>
-              <Box marginBottom={1}>
-                <Text>
-                  <Text color="gray" dimColor>Name: </Text>
-                  <Text bold>{agent.name}</Text>
-                </Text>
-              </Box>
-              <Box marginBottom={1}>
-                <Text>
-                  <Text color="gray" dimColor>Status: </Text>
-                  <Text color={statusDisplay.color}>
-                    {statusDisplay.symbol} {statusDisplay.label}
+            )}
+            {agent.source.ref &&
+              renderDetailField("Ref", agent.source.ref)}
+            {agent.target.branchName &&
+              renderDetailField("Branch", agent.target.branchName)}
+            {renderDetailField(
+              "Preview URL",
+              <Box flexDirection="column">
+                {previewLines.map((line, index) => (
+                  <Text key={`detail-preview-${agent.id}-${index}`} color="cyan">
+                    {line}
                   </Text>
-                </Text>
+                ))}
               </Box>
-              <Box marginBottom={1}>
-                <Text>
-                  <Text color="gray" dimColor>Repository: </Text>
-                  <Text>{agent.source.repository}</Text>
-                </Text>
-              </Box>
-              {agent.source.ref && (
-                <Box marginBottom={1}>
-                  <Text>
-                    <Text color="gray" dimColor>Ref: </Text>
-                    <Text>{agent.source.ref}</Text>
-                  </Text>
+            )}
+            {prLines.length > 0 &&
+              renderDetailField(
+                "Pull Request",
+                <Box flexDirection="column">
+                  {prLines.map((line, index) => (
+                    <Text key={`detail-pr-${agent.id}-${index}`} color="cyan">
+                      {line}
+                    </Text>
+                  ))}
                 </Box>
               )}
-              {agent.target.branchName && (
-                <Box marginBottom={1}>
-                  <Text>
-                    <Text color="gray" dimColor>Branch: </Text>
-                    <Text>{agent.target.branchName}</Text>
-                  </Text>
-                </Box>
-              )}
-              <Box marginBottom={1}>
-                <Text>
-                  <Text color="gray" dimColor>Preview URL: </Text>
-                  <Text color="cyan">{agent.target.url}</Text>
+            {summaryLines.length > 0 && (
+              <Box marginTop={1} flexDirection="column">
+                <Text color="gray">
+                  {getSeparator(Math.max(10, summaryWrapWidth))}
                 </Text>
-              </Box>
-              {agent.target.prUrl && (
-                <Box marginBottom={1}>
-                  <Text>
-                    <Text color="gray" dimColor>Pull Request: </Text>
-                    <Text color="cyan">{agent.target.prUrl}</Text>
+                <Box marginTop={1}>
+                  <Text color="gray" dimColor>
+                    Summary
                   </Text>
                 </Box>
-              )}
-              {agent.summary && (
-                <Box marginTop={1} marginBottom={1} flexDirection="column">
-                  <Box marginBottom={0}>
-                    <Text color="gray" dimColor>Summary:</Text>
+                {summaryLines.map((line, index) => (
+                  <Box
+                    key={`summary-${agent.id}-${index}`}
+                    marginLeft={2}
+                  >
+                    <Text>{line}</Text>
                   </Box>
-                  <Box marginTop={0}>
-                    <Text>{agent.summary}</Text>
-                  </Box>
-                </Box>
-              )}
-              <Box marginTop={1} marginBottom={0}>
-                <Text>
-                  <Text color="gray" dimColor>Created: </Text>
-                  <Text>{getRelativeTime(agent.createdAt)}</Text>
-                </Text>
+                ))}
               </Box>
-            </Box>
+            )}
+            {renderDetailField(
+              "Created",
+              getRelativeTime(agent.createdAt),
+              { marginBottom: 0 }
+            )}
             {isOpening && (
               <Box marginTop={1}>
                 <Text color="cyan">Opening in browser...</Text>
@@ -885,17 +998,15 @@ export function AgentList({ apiClient, onBack, repositoryFilter }: AgentListProp
       </Box>
     );
     
-    // Wrap selected item in a box with border
-    if (isSelected) {
-      const borderedWidth = getBorderedBoxWidth(terminalWidth - 6);
+    if (showSelectionBorder) {
       return (
-        <Box key={agent.id} marginTop={0} marginBottom={0}>
-          <Box 
-            borderStyle="round" 
-            borderColor="cyan" 
-            paddingX={columnLayout.stacked ? 0 : 1} 
+        <Box key={agent.id} marginBottom={1}>
+          <Box
+            borderStyle="round"
+            borderColor="cyan"
+            paddingX={columnLayout.stacked ? 0 : 1}
             paddingY={isExpanded ? 1 : 0}
-            width={borderedWidth}
+            width={cardBorderWidth}
           >
             {agentContent}
           </Box>
@@ -904,7 +1015,7 @@ export function AgentList({ apiClient, onBack, repositoryFilter }: AgentListProp
     }
     
     return (
-      <Box key={agent.id} marginTop={0} marginBottom={0}>
+      <Box key={agent.id} marginBottom={1}>
         <Box marginLeft={columnLayout.stacked ? 0 : 2}>
           {agentContent}
         </Box>
