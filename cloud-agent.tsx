@@ -104,7 +104,7 @@ async function main() {
         validatePlanContent,
         validateBranchName,
         validateRef,
-      } = await import("./src/utils/validation.js");
+        } = await import("./src/utils/validation/index.js");
 
       // Validate plan file path (skip validation for stdin "-")
       if (args.plan !== "-") {
@@ -394,7 +394,7 @@ async function main() {
     }
 
     // Validate agent ID format
-    const { validateAgentId } = await import("./src/utils/validation.js");
+    const { validateAgentId } = await import("./src/utils/validation/index.js");
     const agentIdValidation = validateAgentId(args.agentId);
     if (!agentIdValidation.valid) {
       console.error(`Error: ${agentIdValidation.error}`);
