@@ -28,7 +28,7 @@ interface LaunchOptions {
 
 export async function executeLaunch(
   context: CommandContext,
-  options: LaunchOptions
+  options: LaunchOptions,
 ): Promise<void> {
   const { apiClient, workingDir } = context;
   const {
@@ -48,6 +48,9 @@ export async function executeLaunch(
       const planPathValidation = validatePlanFilePath(plan);
       if (!planPathValidation.valid) {
         console.error(`Error: ${planPathValidation.error}`);
+        console.error(
+          "Next steps: make sure the plan file exists or pass --plan - to read from stdin.",
+        );
         process.exit(1);
       }
     }
@@ -59,6 +62,9 @@ export async function executeLaunch(
     const planContentValidation = validatePlanContent(planContent);
     if (!planContentValidation.valid) {
       console.error(`Error: ${planContentValidation.error}`);
+      console.error(
+        "Tip: include a short goal plus at least one bullet list under Tasks so the agent knows what to do.",
+      );
       process.exit(1);
     }
 
@@ -72,6 +78,9 @@ export async function executeLaunch(
       const repoValidation = validateRepositoryUrl(repo);
       if (!repoValidation.valid) {
         console.error(`Error: ${repoValidation.error}`);
+        console.error(
+          "Expected format: https://github.com/org/repo (full HTTPS URL).",
+        );
         process.exit(1);
       }
     }
@@ -81,6 +90,9 @@ export async function executeLaunch(
       const refValidation = validateRef(ref);
       if (!refValidation.valid) {
         console.error(`Error: ${refValidation.error}`);
+        console.error(
+          "Try a branch name like main or copy the output of git rev-parse HEAD.",
+        );
         process.exit(1);
       }
     }
@@ -91,23 +103,35 @@ export async function executeLaunch(
     } else {
       // Check if we're in a git repository before attempting detection
       if (!isGitRepository(workingDirectory)) {
-        console.error("Error: Not in a git repository.");
+        console.error(
+          `Error: Not in a git repository (checked ${workingDirectory}).`,
+        );
         console.error("");
         console.error("Please provide --repo and --ref flags:");
-        console.error("  cloud-agent launch --plan plan.md --repo https://github.com/org/repo --ref main");
+        console.error(
+          "  cloud-agent launch --plan plan.md --repo https://github.com/org/repo --ref main",
+        );
         console.error("");
-        console.error("Or navigate to a git repository with a remote configured.");
+        console.error(
+          "Or navigate to a git repository that has a remote named origin.",
+        );
         process.exit(1);
       }
 
       const gitInfo = await detectRepoAndRef(workingDirectory);
       if (!gitInfo) {
-        console.error("Error: Could not detect git repository information.");
+        console.error(
+          "Error: Could not detect git repository information (remote 'origin' missing?).",
+        );
         console.error("");
         console.error("Please provide --repo and --ref flags:");
-        console.error("  cloud-agent launch --plan plan.md --repo https://github.com/org/repo --ref main");
+        console.error(
+          "  cloud-agent launch --plan plan.md --repo https://github.com/org/repo --ref main",
+        );
         console.error("");
-        console.error("Or ensure your git repository has a remote 'origin' configured.");
+        console.error(
+          "Or ensure your git repository has a remote 'origin' configured and tracking the branch you want to launch.",
+        );
         process.exit(1);
       }
       repository = repo || gitInfo.repository;
@@ -117,10 +141,18 @@ export async function executeLaunch(
       if (!ref) {
         const refValidation = validateRef(gitRef);
         if (!refValidation.valid) {
-          console.error(`Error: Auto-detected ref "${gitRef}" is invalid: ${refValidation.error}`);
+          console.error(
+            `Error: Auto-detected ref "${gitRef}" is invalid: ${refValidation.error}`,
+          );
           console.error("");
           console.error("Please provide a valid --ref flag:");
-          console.error("  cloud-agent launch --plan plan.md --repo https://github.com/org/repo --ref main");
+          console.error(
+            "  cloud-agent launch --plan plan.md --repo https://github.com/org/repo --ref main",
+          );
+          console.error("");
+          console.error(
+            "You can run git rev-parse HEAD to copy a commit SHA if your branch name has special characters.",
+          );
           process.exit(1);
         }
       }
@@ -160,6 +192,9 @@ export async function executeLaunch(
         const branchValidation = validateBranchName(branch);
         if (!branchValidation.valid) {
           console.error(`Error: ${branchValidation.error}`);
+          console.error(
+            "Use a short branch name with letters, numbers, or dashes. Example: feature-improve-docs.",
+          );
           process.exit(1);
         }
       }
@@ -184,7 +219,12 @@ export async function executeLaunch(
         // Validate provided model
         if (!isValidModel(model)) {
           console.error(`Error: Invalid model "${model}"`);
-          console.error(`Supported models: ${Object.values(MODELS).join(", ")}`);
+          console.error(
+            `Supported models: ${Object.values(MODELS).join(", ")}`,
+          );
+          console.error(
+            "Leave --model unset to auto-pick, or pass one of the names above.",
+          );
           process.exit(1);
         }
         selectedModel = model;
@@ -208,24 +248,34 @@ export async function executeLaunch(
       console.log(agent.target.url);
     } catch (err) {
       if (err instanceof ApiError) {
-        console.error(`Error: ${err.message}`);
+        console.error("Launch failed: the API rejected the request.");
+        console.error(`Reason: ${err.message}`);
+        if (err.statusCode) {
+          console.error(`HTTP status: ${err.statusCode}.`);
+        }
+        console.error(
+          "Next steps: confirm CURSOR_API_KEY is set, the repo/ref are correct, and re-run with --verbose for the full API payload.",
+        );
         if (verbose && err.response) {
           console.error("API Response:", JSON.stringify(err.response, null, 2));
         }
       } else if (err instanceof Error) {
-        console.error(`Error: ${err.message}`);
+        console.error(`Unexpected error while launching agent: ${err.message}`);
+        console.error("Try running again with --verbose to see more details.");
       } else {
-        console.error("Error: Failed to launch agent");
+        console.error("Error: Failed to launch agent for an unknown reason.");
+        console.error("Check your network connection and try again.");
       }
       process.exit(1);
     }
   } catch (error) {
     if (error instanceof Error) {
-      console.error(`Error: ${error.message}`);
+      console.error(`Launch aborted: ${error.message}`);
+      console.error("Fix the issue above, then re-run the command.");
     } else {
-      console.error("Error: Unknown error occurred");
+      console.error("Error: Unknown error occurred during launch setup.");
+      console.error("Try again with --verbose to capture more context.");
     }
     process.exit(1);
   }
 }
-

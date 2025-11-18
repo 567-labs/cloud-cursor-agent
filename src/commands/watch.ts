@@ -26,17 +26,26 @@ function sleep(ms: number): Promise<void> {
 
 export async function executeWatch(
   context: CommandContext,
-  options: WatchOptions
+  options: WatchOptions,
 ): Promise<void> {
   const { apiClient } = context;
-  const { agentId, interval = DEFAULT_POLL_INTERVAL, verbose = false } = options;
+  const {
+    agentId,
+    interval = DEFAULT_POLL_INTERVAL,
+    verbose = false,
+  } = options;
 
   // Validate agent ID format
   const agentIdValidation = validateAgentId(agentId);
   if (!agentIdValidation.valid) {
     console.error(`Error: ${agentIdValidation.error}`);
     console.error("");
-    console.error("Agent ID must look like bc_123abc (letters and numbers only, at least 5 characters after bc_).");
+    console.error(
+      "Agent ID must look like bc_123abc (letters and numbers only, at least 5 characters after bc_).",
+    );
+    console.error(
+      "Run bun run cloud-agent.tsx list to copy a valid agent id from the output.",
+    );
     process.exit(1);
   }
 
@@ -67,7 +76,9 @@ export async function executeWatch(
       // Show status change if verbose
       if (verbose && agent.status !== lastStatus) {
         const statusDisplay = getStatusDisplay(agent.status);
-        console.error(`Status changed: ${statusDisplay.symbol} ${statusDisplay.label}`);
+        console.error(
+          `Status changed: ${statusDisplay.symbol} ${statusDisplay.label}`,
+        );
         lastStatus = agent.status;
       }
 
@@ -82,7 +93,9 @@ export async function executeWatch(
     const statusDisplay = getStatusDisplay(agent.status);
     if (verbose) {
       console.error("");
-      console.error(`Agent ${agent.status === "FINISHED" ? "completed" : "terminated"}: ${statusDisplay.symbol} ${statusDisplay.label}`);
+      console.error(
+        `Agent ${agent.status === "FINISHED" ? "completed" : "terminated"}: ${statusDisplay.symbol} ${statusDisplay.label}`,
+      );
       if (agent.summary) {
         console.error("");
         console.error(`Summary:\n${agent.summary}`);
@@ -97,13 +110,27 @@ export async function executeWatch(
     process.exit(agent.status === "FINISHED" ? 0 : 1);
   } catch (error) {
     if (error instanceof ApiError) {
-      console.error(`Error: ${error.message}`);
+      console.error("Watch failed: the API could not return the agent status.");
+      console.error(`Reason: ${error.message}`);
+      if (error.statusCode) {
+        console.error(`HTTP status: ${error.statusCode}.`);
+      }
+      console.error(
+        "Tip: make sure the agent still exists, your CURSOR_API_KEY is valid, and that you can reach https://api.cursor.com.",
+      );
     } else if (error instanceof Error) {
-      console.error(`Error: ${error.message}`);
+      console.error(`Unexpected watch error: ${error.message}`);
+      console.error(
+        "Try again with a longer --interval or rerun after checking your network.",
+      );
     } else {
-      console.error("Error: Failed to watch agent status");
+      console.error(
+        "Error: Failed to watch agent status due to an unknown issue.",
+      );
+      console.error(
+        "Please retry in a moment or use cloud-agent status to check once without watching.",
+      );
     }
     process.exit(1);
   }
 }
-

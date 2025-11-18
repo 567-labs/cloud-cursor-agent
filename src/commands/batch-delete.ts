@@ -31,7 +31,7 @@ const TERMINAL_STATUSES: AgentStatus[] = ["FINISHED", "FAILED", "CANCELLED"];
 
 export async function executeBatchDelete(
   context: CommandContext,
-  options: BatchDeleteOptions
+  options: BatchDeleteOptions,
 ): Promise<void> {
   const { apiClient, workingDir } = context;
   const {
@@ -68,7 +68,7 @@ export async function executeBatchDelete(
     if (status) {
       if (status === "terminal") {
         agents = agents.filter((agent) =>
-          TERMINAL_STATUSES.includes(agent.status)
+          TERMINAL_STATUSES.includes(agent.status),
         );
       } else {
         agents = agents.filter((agent) => agent.status === status);
@@ -77,6 +77,9 @@ export async function executeBatchDelete(
 
     if (agents.length === 0) {
       console.log("No agents found matching the criteria.");
+      console.log(
+        "Try adjusting --status, --repo, or increase --limit to inspect more agents.",
+      );
       return;
     }
 
@@ -84,12 +87,15 @@ export async function executeBatchDelete(
     console.log(`Found ${agents.length} agent(s) to delete:\n`);
     for (const agent of agents) {
       const statusDisplay = getStatusDisplay(agent.status);
-      console.log(`  ${agent.id} - ${statusDisplay.symbol} ${statusDisplay.label} - ${agent.name}`);
+      console.log(
+        `  ${agent.id} - ${statusDisplay.symbol} ${statusDisplay.label} - ${agent.name}`,
+      );
     }
     console.log("");
 
     if (dryRun) {
       console.log("Dry run: No agents were deleted.");
+      console.log("Re-run with --force after reviewing the list above.");
       return;
     }
 
@@ -99,7 +105,13 @@ export async function executeBatchDelete(
       console.error("Use --force to skip this confirmation.");
       console.error("");
       console.error("Example:");
-      console.error(`  bun run cloud-agent.tsx batch-delete --status FINISHED --force`);
+      console.error(
+        `  bun run cloud-agent.tsx batch-delete --status FINISHED --force`,
+      );
+      console.error("");
+      console.error(
+        "Tip: run the same command with --dry-run first to preview without deleting.",
+      );
       process.exit(1);
       return;
     }
@@ -114,7 +126,9 @@ export async function executeBatchDelete(
       try {
         await apiClient.deleteAgent(agent.id);
         const statusDisplay = getStatusDisplay(agent.status);
-        console.log(`✓ Deleted ${agent.id} (${statusDisplay.symbol} ${statusDisplay.label})`);
+        console.log(
+          `✓ Deleted ${agent.id} (${statusDisplay.symbol} ${statusDisplay.label})`,
+        );
         deletedCount++;
       } catch (error) {
         failedCount++;
@@ -137,13 +151,22 @@ export async function executeBatchDelete(
     }
   } catch (error) {
     if (error instanceof ApiError) {
-      console.error(`Error: ${error.message}`);
+      console.error(
+        "Batch delete failed: the API did not complete the request.",
+      );
+      console.error(`Reason: ${error.message}`);
+      console.error(
+        "Confirm your CURSOR_API_KEY has delete access and that the repository filter is valid.",
+      );
     } else if (error instanceof Error) {
-      console.error(`Error: ${error.message}`);
+      console.error(`Unexpected batch delete error: ${error.message}`);
+      console.error("Check your network connection and try again.");
     } else {
-      console.error("Error: Failed to batch delete agents");
+      console.error(
+        "Error: Failed to batch delete agents for an unknown reason.",
+      );
+      console.error("Retry with a smaller --limit to narrow the request.");
     }
     process.exit(1);
   }
 }
-
