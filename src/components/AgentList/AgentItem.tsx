@@ -11,9 +11,10 @@
 import React from "react";
 import { Box, Text } from "ink";
 import type { Agent } from "../../api/schemas.js";
-import { truncate, clampWidth, getSeparator } from "../../utils/formatting.js";
-import { getStatusDisplay, getRelativeTime } from "../../utils/status.js";
+import { truncate, clampWidth } from "../../utils/formatting.js";
+import { getStatusDisplay } from "../../utils/status.js";
 import type { ColumnLayout } from "../../utils/layout.js";
+import { AgentItemDetails } from "./AgentItemDetails.js";
 
 export interface AgentItemProps {
   /** Agent data */
@@ -162,115 +163,13 @@ export function AgentItem({
 
       {/* Expanded details */}
       {isExpanded && (
-        <Box
-          marginLeft={columnLayout.stacked ? 0 : 2}
-          marginTop={1}
-          flexDirection="column"
-        >
-          <Box marginTop={0} marginBottom={1}>
-            <Text color="gray">
-              {getSeparator(Math.max(20, separatorWidth - 8))}
-            </Text>
-          </Box>
-          <Box marginTop={0} flexDirection="column">
-            <Box marginBottom={1}>
-              <Text>
-                <Text color="gray" dimColor>
-                  Agent ID:{" "}
-                </Text>
-                <Text>{agent.id}</Text>
-              </Text>
-            </Box>
-            <Box marginBottom={1}>
-              <Text>
-                <Text color="gray" dimColor>
-                  Name:{" "}
-                </Text>
-                <Text bold>{agent.name}</Text>
-              </Text>
-            </Box>
-            <Box marginBottom={1}>
-              <Text>
-                <Text color="gray" dimColor>
-                  Status:{" "}
-                </Text>
-                <Text color={statusDisplay.color}>
-                  {statusDisplay.symbol} {statusDisplay.label}
-                </Text>
-              </Text>
-            </Box>
-            <Box marginBottom={1}>
-              <Text>
-                <Text color="gray" dimColor>
-                  Repository:{" "}
-                </Text>
-                <Text>{agent.source.repository}</Text>
-              </Text>
-            </Box>
-            {agent.source.ref && (
-              <Box marginBottom={1}>
-                <Text>
-                  <Text color="gray" dimColor>
-                    Ref:{" "}
-                  </Text>
-                  <Text>{agent.source.ref}</Text>
-                </Text>
-              </Box>
-            )}
-            {agent.target.branchName && (
-              <Box marginBottom={1}>
-                <Text>
-                  <Text color="gray" dimColor>
-                    Branch:{" "}
-                  </Text>
-                  <Text>{agent.target.branchName}</Text>
-                </Text>
-              </Box>
-            )}
-            <Box marginBottom={1}>
-              <Text>
-                <Text color="gray" dimColor>
-                  Preview URL:{" "}
-                </Text>
-                <Text color="cyan">{agent.target.url}</Text>
-              </Text>
-            </Box>
-            {agent.target.prUrl && (
-              <Box marginBottom={1}>
-                <Text>
-                  <Text color="gray" dimColor>
-                    Pull Request:{" "}
-                  </Text>
-                  <Text color="cyan">{agent.target.prUrl}</Text>
-                </Text>
-              </Box>
-            )}
-            {agent.summary && (
-              <Box marginTop={1} marginBottom={1} flexDirection="column">
-                <Box marginBottom={0}>
-                  <Text color="gray" dimColor>
-                    Summary:
-                  </Text>
-                </Box>
-                <Box marginTop={0}>
-                  <Text>{agent.summary}</Text>
-                </Box>
-              </Box>
-            )}
-            <Box marginTop={1} marginBottom={0}>
-              <Text>
-                <Text color="gray" dimColor>
-                  Created:{" "}
-                </Text>
-                <Text>{getRelativeTime(agent.createdAt)}</Text>
-              </Text>
-            </Box>
-          </Box>
-          {isOpening && (
-            <Box marginTop={1}>
-              <Text color="cyan">Opening in browser...</Text>
-            </Box>
-          )}
+        <Box marginLeft={columnLayout.stacked ? 0 : 2}>
+          <AgentItemDetails
+            agent={agent}
+            statusDisplay={statusDisplay}
+            separatorWidth={separatorWidth}
+            isOpening={isOpening}
+          />
         </Box>
       )}
     </Box>

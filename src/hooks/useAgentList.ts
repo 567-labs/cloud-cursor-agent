@@ -8,10 +8,11 @@
  * @module hooks/useAgentList
  */
 
-import { useCallback, useEffect, useState, useRef } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { CloudAgentsApiClient, ApiError } from "../api/client.js";
 import type { Agent, AgentStatus } from "../api/schemas.js";
 import { normalizeRepositoryUrl } from "../utils/formatting.js";
+import { useAgentPolling } from "./useAgentPolling.js";
 
 /**
  * Configuration options for the useAgentList hook.
@@ -122,7 +123,6 @@ export function useAgentList({
   const [inFlightCursor, setInFlightCursor] = useState<string | undefined>(
     undefined
   );
-  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const loadAgents = useCallback(
     async (cursor?: string, perPage = agentsPerView) => {
@@ -239,82 +239,12 @@ export function useAgentList({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apiClient, repositoryFilter]);
 
-  // Poll status for active agents (CREATING or RUNNING)
-  useEffect(() => {
-    // Find agents that need polling (use all agents, not filtered, so we poll even when filtered)
-    const activeAgents = agents.filter(
-      (agent) => agent.status === "CREATING" || agent.status === "RUNNING"
-    );
-
-    // If no active agents, clear any existing polling
-    if (activeAgents.length === 0) {
-      if (pollingIntervalRef.current) {
-        clearInterval(pollingIntervalRef.current);
-        pollingIntervalRef.current = null;
-      }
-      return;
-    }
-
-    // Function to refresh statuses for active agents
-    const refreshActiveAgentStatuses = async () => {
-      try {
-        // Fetch fresh status for each active agent
-        const statusPromises = activeAgents.map((agent) =>
-          apiClient.getAgentStatus(agent.id).catch((err) => {
-            // If fetching fails, return null to skip updating that agent
-            console.error(`Failed to fetch status for agent ${agent.id}:`, err);
-            return null;
-          })
-        );
-
-        const updatedAgents = await Promise.all(statusPromises);
-
-        // Update agents state with new statuses and track transitions
-        setAgents((currentAgents) => {
-          const agentMap = new Map(currentAgents.map((a) => [a.id, a]));
-          const transitionSet = new Set<string>();
-
-          updatedAgents.forEach((updatedAgent) => {
-            if (updatedAgent) {
-              const oldAgent = agentMap.get(updatedAgent.id);
-              if (oldAgent && oldAgent.status !== updatedAgent.status) {
-                transitionSet.add(updatedAgent.id);
-              }
-              agentMap.set(updatedAgent.id, updatedAgent);
-            }
-          });
-
-          if (transitionSet.size > 0) {
-            setStatusTransitionAgents(transitionSet);
-            // Clear transition indicators after 3 seconds
-            setTimeout(() => {
-              setStatusTransitionAgents((prev) => {
-                const updated = new Set(prev);
-                transitionSet.forEach((id) => updated.delete(id));
-                return updated;
-              });
-            }, 3000);
-          }
-
-          return Array.from(agentMap.values());
-        });
-      } catch (err) {
-        // Silently handle errors during polling to avoid disrupting the UI
-        console.error("Error polling agent statuses:", err);
-      }
-    };
-
-    // Poll every 5 seconds
-    pollingIntervalRef.current = setInterval(refreshActiveAgentStatuses, 5000);
-
-    // Cleanup on unmount or when active agents change
-    return () => {
-      if (pollingIntervalRef.current) {
-        clearInterval(pollingIntervalRef.current);
-        pollingIntervalRef.current = null;
-      }
-    };
-  }, [agents, apiClient]);
+  useAgentPolling({
+    agents,
+    apiClient,
+    setAgents,
+    setStatusTransitionAgents,
+  });
 
   return {
     agents,
