@@ -17,6 +17,15 @@ interface BatchDeleteOptions {
   dir?: string;
 }
 
+/**
+ * Normalize repository URLs for comparisons by stripping protocol, suffix, and case.
+ *
+ * @param {string} url - Repository URL from CLI flags or API responses.
+ * @returns {string} Normalized repository identifier.
+ * @example
+ * normalizeRepo("https://github.com/context/app.git");
+ * // => "github.com/context/app"
+ */
 function normalizeRepo(url: string): string {
   if (!url) return "";
   return url
@@ -29,6 +38,15 @@ function normalizeRepo(url: string): string {
 
 const TERMINAL_STATUSES: AgentStatus[] = ["FINISHED", "FAILED", "CANCELLED"];
 
+/**
+ * Delete multiple agents that match the provided filters.
+ *
+ * @param {CommandContext} context - Shared CLI context with API client and working directory.
+ * @param {BatchDeleteOptions} options - Filters and flags such as status, repo, and dry run.
+ * @returns {Promise<void>} Resolves when deletions and logging are complete.
+ * @example
+ * await executeBatchDelete(context, { status: "terminal", force: true });
+ */
 export async function executeBatchDelete(
   context: CommandContext,
   options: BatchDeleteOptions

@@ -12,7 +12,25 @@ const PLAN_EXTENSIONS = [".md", ".markdown", ".plan", ".txt"];
 const INVALID_PLAN_PATH_CHARS = /[<>:"|?*\u0000]/;
 const AGENT_ID_REGEX = /^bc_[a-z0-9]{5,}$/i;
 
+/**
+ * Build a successful validation result object.
+ *
+ * @returns {ValidationResult} Success tuple that callers can return directly.
+ * @example
+ * success();
+ * // => { valid: true }
+ */
 const success = (): ValidationResult => ({ valid: true });
+
+/**
+ * Build a failed validation result with a human-friendly error message.
+ *
+ * @param {string} error - Reason that describes what was invalid.
+ * @returns {ValidationResult} Object containing the error explanation.
+ * @example
+ * failure("Repository URL is required.");
+ * // => { valid: false, error: "Repository URL is required." }
+ */
 const failure = (error: string): ValidationResult => ({ valid: false, error });
 
 /**
@@ -22,7 +40,7 @@ const failure = (error: string): ValidationResult => ({ valid: false, error });
  * and normalizes obvious mistakes such as stray whitespace.
  *
  * @param {string} url - Raw repository URL provided by the user interface.
- * @returns {{ valid: boolean; error?: string }} Result describing whether the value passed basic checks.
+ * @returns {ValidationResult} Result describing whether the value passed basic checks.
  * @example
  * validateRepositoryUrl("https://github.com/buildwithcontext/app");
  * // => { valid: true }
@@ -113,7 +131,10 @@ export function validateRepositoryUrl(url: string): ValidationResult {
  * characters that git disallows in ref names.
  *
  * @param {string} ref - Candidate git ref string from user input.
- * @returns {{ valid: boolean; error?: string }} Validation result with an error reason when invalid.
+ * @returns {ValidationResult} Validation result with an error reason when invalid.
+ * @example
+ * validateRef("feature/login-flow");
+ * // => { valid: true }
  */
 export function validateRef(ref: string): ValidationResult {
   if (!ref || typeof ref !== "string") {
@@ -167,7 +188,10 @@ export function validateRef(ref: string): ValidationResult {
  * Currently checks only for presence and non-empty length once trimmed.
  *
  * @param {string} filePath - File path that may be relative or absolute.
- * @returns {{ valid: boolean; error?: string }} Validation result describing whether the path looks usable.
+ * @returns {ValidationResult} Validation result describing whether the path looks usable.
+ * @example
+ * validateFilePath("./plan.md");
+ * // => { valid: true }
  */
 export function validateFilePath(filePath: string): ValidationResult {
   if (!filePath || typeof filePath !== "string") {
@@ -189,7 +213,10 @@ export function validateFilePath(filePath: string): ValidationResult {
  * Ensures the ID exists, trims it, and enforces a basic prefix/length check like `bc_abc123`.
  *
  * @param {string} id - Agent identifier supplied by the user.
- * @returns {{ valid: boolean; error?: string }} Flag describing if the ID matches the expected format.
+ * @returns {ValidationResult} Flag describing if the ID matches the expected format.
+ * @example
+ * validateAgentId("bc_abc123");
+ * // => { valid: true }
  */
 export function validateAgentId(id: string): ValidationResult {
   if (!id || typeof id !== "string") {
@@ -215,7 +242,10 @@ export function validateAgentId(id: string): ValidationResult {
  * These checks help minimize round trips before the key hits the network or backend.
  *
  * @param {string} apiKey - API key captured from local input.
- * @returns {{ valid: boolean; error?: string }} Result noting whether the key is plausibly valid.
+ * @returns {ValidationResult} Result noting whether the key is plausibly valid.
+ * @example
+ * validateApiKey("sk-proj-super-secret");
+ * // => { valid: true }
  */
 export function validateApiKey(apiKey: string): ValidationResult {
   if (!apiKey || typeof apiKey !== "string") {
@@ -237,7 +267,13 @@ export function validateApiKey(apiKey: string): ValidationResult {
 }
 
 /**
- * Validate a branch name (wrapper around validateRef with branch-specific rules)
+ * Validate a branch name, enforcing git ref rules plus branch-specific constraints.
+ *
+ * @param {string} branch - Proposed branch name (for example, `feature/docs`).
+ * @returns {ValidationResult} Result describing whether the branch can be created safely.
+ * @example
+ * validateBranchName("feature/add-jsdoc");
+ * // => { valid: true }
  */
 export function validateBranchName(branch: string): ValidationResult {
   const base = validateRef(branch);
@@ -263,7 +299,13 @@ export function validateBranchName(branch: string): ValidationResult {
 }
 
 /**
- * Validate a plan file path
+ * Validate a plan file path string before attempting to read from disk.
+ *
+ * @param {string} filePath - Relative/absolute path pointing to a plan file.
+ * @returns {ValidationResult} Result describing whether the path has a safe format.
+ * @example
+ * validatePlanFilePath("plans/bugfix.md");
+ * // => { valid: true }
  */
 export function validatePlanFilePath(filePath: string): ValidationResult {
   if (!filePath || typeof filePath !== "string") {
@@ -294,7 +336,13 @@ export function validatePlanFilePath(filePath: string): ValidationResult {
 }
 
 /**
- * Validate plan content (post-read)
+ * Validate plan content after it has been read into memory.
+ *
+ * @param {string} content - Raw plan text that may include frontmatter.
+ * @returns {ValidationResult} Result indicating if the plan has enough structure to launch.
+ * @example
+ * validatePlanContent("# Bug Fixes\\n- Fix login flow");
+ * // => { valid: true }
  */
 export function validatePlanContent(content: string): ValidationResult {
   if (!content || typeof content !== "string") {

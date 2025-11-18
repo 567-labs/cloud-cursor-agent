@@ -18,12 +18,26 @@ const TERMINAL_STATUSES: AgentStatus[] = ["FINISHED", "FAILED", "CANCELLED"];
 const DEFAULT_POLL_INTERVAL = 2000; // 2 seconds
 
 /**
- * Sleep for specified milliseconds
+ * Sleep for a specified number of milliseconds.
+ *
+ * @param {number} ms - Duration to wait before resolving.
+ * @returns {Promise<void>} Resolves after the timeout is reached.
+ * @example
+ * await sleep(500);
  */
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/**
+ * Poll an agent until it reaches a terminal state, exiting with status codes.
+ *
+ * @param {CommandContext} context - Shared CLI context with the API client.
+ * @param {WatchOptions} options - Agent ID, poll interval, and verbosity flag.
+ * @returns {Promise<void>} Resolves only when the process exits or throws.
+ * @example
+ * await executeWatch(context, { agentId: "bc_abc123", interval: 5000, verbose: true });
+ */
 export async function executeWatch(
   context: CommandContext,
   options: WatchOptions

@@ -11,6 +11,15 @@ interface ConversationOptions {
   "non-interactive"?: boolean;
 }
 
+/**
+ * Print an agent's conversation in plain text or a formatted style.
+ *
+ * @param {CommandContext} context - Shared CLI context with the API client.
+ * @param {ConversationOptions} options - Agent ID and output preferences.
+ * @returns {Promise<void>} Resolves when logs are rendered to stdout.
+ * @example
+ * await executeConversation(context, { agentId: "bc_abc123", "non-interactive": true });
+ */
 export async function executeConversation(
   context: CommandContext,
   options: ConversationOptions

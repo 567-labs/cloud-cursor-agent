@@ -10,6 +10,15 @@ interface CancelOptions {
   agentId: string;
 }
 
+/**
+ * Cancel a running agent if the API supports it (currently informational).
+ *
+ * @param {CommandContext} context - Shared CLI context with the API client.
+ * @param {CancelOptions} options - CLI flags including the agent ID to cancel.
+ * @returns {Promise<void>} Resolves after validation and API calls complete.
+ * @example
+ * await executeCancel(context, { agentId: "bc_abc123" });
+ */
 export async function executeCancel(
   context: CommandContext,
   options: CancelOptions

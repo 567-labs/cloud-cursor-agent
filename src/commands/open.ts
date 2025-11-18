@@ -12,6 +12,15 @@ interface OpenOptions {
   pr?: boolean;
 }
 
+/**
+ * Open either the agent page or PR URL in the user's default browser.
+ *
+ * @param {CommandContext} context - Shared CLI context with the API client.
+ * @param {OpenOptions} options - Agent ID and whether to open the PR URL.
+ * @returns {Promise<void>} Resolves after the browser command finishes.
+ * @example
+ * await executeOpen(context, { agentId: "bc_abc123", pr: true });
+ */
 export async function executeOpen(
   context: CommandContext,
   options: OpenOptions
