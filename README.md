@@ -25,6 +25,17 @@ export CURSOR_API_KEY=your_api_key
 
 You can obtain an API key from [Cursor Settings](https://cursor.com/settings).
 
+## Documentation Map
+
+- `README.md` – Quick start, installation, and day-to-day commands
+- `docs/EXAMPLES.md` – Scenario-based walkthroughs for every command
+- `docs/API.md` – Request/response reference for the Cursor Cloud Agents API
+- `docs/TROUBLESHOOTING.md` – Common issues, diagnostics, and recovery steps
+- `docs/CONTRIBUTING.md` – How to propose changes and run checks locally
+- `AGENTS.md` – Deep dive into AI agent workflows and planning rules
+
+Use this file for the basics, then jump into the docs as you need more detail.
+
 ## Usage
 
 ### Quick Launch (Primary Workflow)
@@ -71,7 +82,25 @@ refactor(AgentList): extract status order constant and consolidate footer hints
 - Consolidate footer hint text generation into single variable
 - Improve maintainability by removing hardcoded status arrays
 EOF
+
+# Launch with explicit repo/ref and smarter model override (helpful in CI)
+bun run cloud-agent.tsx launch \
+  --plan plan/refactors/agent-cleanup.md \
+  --repo https://github.com/acme/agents \
+  --ref main \
+  --model gpt-5.1-codex
+
+# Launch using inline JSON payload (advanced usage)
+cat <<'JSON' | bun run cloud-agent.tsx launch --plan -
+refactor(Git Utils): add async detection
+
+- ensure git detection works across detached HEADs
+- add logging hook for CI
+- document new flags in README
+JSON
 ```
+
+**Tip:** Inline code like `--repo` or `--ref` always override auto-detected values, which is useful when running inside CI where the git metadata might not match your target repository.
 
 ### List Agents
 
@@ -94,6 +123,16 @@ bun run cloud-agent.tsx list --non-interactive
 - `r` - Refresh list
 - `n` - Next page (if pagination available)
 
+**Scripted example:**
+
+```bash
+# Capture the most recent agent id for follow-up commands
+AGENT_ID=$(bun run cloud-agent.tsx list --non-interactive | head -n 1 | awk '{print $1}')
+echo "Latest agent is ${AGENT_ID}"
+```
+
+Pipe-friendly, non-interactive output lets you chain commands together without parsing ANSI escape codes.
+
 ### View Agent Status
 
 View detailed status of a specific agent:
@@ -111,6 +150,16 @@ bun run cloud-agent.tsx status <agent-id> --non-interactive
 ```bash
 bun run cloud-agent.tsx status bc_abc123
 bun run cloud-agent.tsx status bc_abc123 --non-interactive
+```
+
+You can also combine `status` with shell conditionals:
+
+```bash
+if bun run cloud-agent.tsx status "$AGENT_ID" --non-interactive | grep -q FINISHED; then
+  echo "Ready for follow-up!"
+else
+  echo "Still running..."
+fi
 ```
 
 **Interactive mode keyboard shortcuts:**
@@ -141,6 +190,14 @@ bun run cloud-agent.tsx watch <agent-id> --interval 5000
 ```bash
 AGENT_ID=$(bun run cloud-agent.tsx launch --plan plan.md)
 bun run cloud-agent.tsx watch $AGENT_ID --verbose && echo "Agent completed successfully!"
+```
+
+For longer chains, pair `watch` with `followup`:
+
+```bash
+AGENT_ID=$(bun run cloud-agent.tsx launch --plan plan/refactor.md)
+bun run cloud-agent.tsx watch "$AGENT_ID" --verbose \
+  && bun run cloud-agent.tsx followup "$AGENT_ID" "Please generate release notes."
 ```
 
 ### Add Follow-up Instructions
@@ -299,6 +356,25 @@ When AI agents (automated assistants, CI/CD systems, or other programmatic tools
 - AI agents cannot proceed past these commands
 
 See [AGENTS.md](./AGENTS.md) for detailed documentation on non-interactive mode and AI agent usage.
+
+## Use Cases & Recipes
+
+- **Solo developer flow:** Keep a library of plan files (for bug fixes, refactors, chores) and run `bun run cloud-agent.tsx launch --plan plan/<topic>.md` whenever a task comes up.
+- **Team triage:** Pair `list --non-interactive` with `grep` in scripts to monitor blocked agents and broadcast updates in chat.
+- **CI/CD automation:** Use `launch` in a release workflow, then `watch --verbose` to fail the job when an agent reports `FAILED`.
+- **AI-in-the-loop edits:** Mix `followup`, `conversation`, and `open --pr` to review agent work, send clarifications, and jump straight into the PR.
+- **Repository maintenance:** Schedule `batch-delete --status FINISHED --force` in a cron job to keep the account tidy.
+
+See `docs/EXAMPLES.md` for step-by-step walkthroughs of each scenario.
+
+## Troubleshooting (Quick Reference)
+
+For a deeper dive, open `docs/TROUBLESHOOTING.md`. Common tips:
+
+- Run `bun run cloud-agent.tsx launch --plan plan.md --model gpt-5.1-codex` if the default model hits complexity limits.
+- Export `CURSOR_API_KEY` in your shell startup file so non-interactive sessions (like CI) inherit it.
+- Pass `--dir /path/to/repo` when running from scripts outside the repository root to avoid git detection errors.
+- Use `--non-interactive` any time another program (like an AI agent) is driving the CLI to prevent hangs.
 
 ## Features
 

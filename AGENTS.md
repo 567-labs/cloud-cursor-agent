@@ -15,6 +15,12 @@ bun run cloud-agent.tsx launch --plan plan/bug-fixes/type-errors.md
 # Output: https://cursor.com/agents?id=bc_abc123
 ```
 
+Once you can launch agents, branch out:
+
+- `README.md` covers installation and day-to-day commands.
+- `docs/EXAMPLES.md` supplies copy-ready command snippets.
+- `docs/TROUBLESHOOTING.md` lists fixes for the most common run failures.
+
 ## Launch Command
 
 ```bash
@@ -34,6 +40,7 @@ Override with `--model`:
 ```bash
 bun run cloud-agent.tsx launch --plan plan.md --model composer-1
 bun run cloud-agent.tsx launch --plan plan.md --model gpt-5.1-codex
+bun run cloud-agent.tsx launch --plan plan.md --model claude-4-sonnet
 ```
 
 ### Heredoc Syntax
@@ -54,6 +61,18 @@ EOF
 
 **STRICT RULE:** Only launch tasks that are **strictly parallel** - meaning they modify completely different files with zero overlap or dependencies. When a plan is well-defined and ready, launch automatically without waiting for confirmation.
 
+### Example: One Plan per Change
+
+```bash
+# ✅ Docs-only change
+bun run cloud-agent.tsx launch --plan plan/docs/add-examples.md
+
+# ✅ Feature touching a distinct area
+bun run cloud-agent.tsx launch --plan plan/feat/status-ui.md
+
+# ❌ Do not run two plans if both modify src/components/AgentList.tsx
+```
+
 ## Planning Best Practices
 
 ### Parallelization Rules
@@ -65,6 +84,7 @@ EOF
 - Plans that modify completely different files (no file overlap)
 - Plans that create new files without modifying any existing files
 - Plans with zero shared dependencies
+- Documentation-only changes (for example, updating `docs/API.md`) when no code files overlap
 
 **NOT Parallelizable (common mistakes):**
 
@@ -236,3 +256,65 @@ bun run cloud-agent.tsx batch-delete --repo https://github.com/org/repo --force
 **Git Not Detected:** Ensure in git repo with `origin` remote
 
 **Authentication Failed:** Verify API key is correct and not expired
+
+Need more? See `docs/TROUBLESHOOTING.md` for deeper diagnostics.
+
+## End-to-End Workflow Example
+
+1. **Draft the plan** at `plan/refactors/split-validation.md`.
+2. **Launch** it and capture the agent id:
+   ```bash
+   AGENT_ID=$(bun run cloud-agent.tsx launch --plan plan/refactors/split-validation.md --model gpt-5.1-codex)
+   ```
+3. **Watch** progress with a gentle polling interval:
+   ```bash
+   bun run cloud-agent.tsx watch "$AGENT_ID" --interval 4000 --verbose
+   ```
+4. **Clarify** if the agent asks questions:
+   ```bash
+   bun run cloud-agent.tsx followup "$AGENT_ID" "Scope only includes src/utils/validation.ts"
+   ```
+5. **Review** the PR:
+   ```bash
+   bun run cloud-agent.tsx open "$AGENT_ID" --pr
+   ```
+6. **Clean up** after merge:
+   ```bash
+   bun run cloud-agent.tsx delete "$AGENT_ID"
+   ```
+
+## Non-Interactive Cheat Sheet
+
+| Command | Why it matters | Snippet |
+| --- | --- | --- |
+| `list` | Avoids React Ink UI so scripts continue running | `bun run cloud-agent.tsx list --non-interactive` |
+| `status` | Delivers parseable plain text for conditionals | `bun run cloud-agent.tsx status "$AGENT_ID" --non-interactive` |
+| `conversation` | Prevents pagination UI inside logs | `bun run cloud-agent.tsx conversation "$AGENT_ID" --non-interactive` |
+
+All other commands already behave non-interactively, but you can still add `--non-interactive` for clarity in CI logs.
+
+## Plan Template
+
+```markdown
+refactor(<component>): <short summary>
+
+## Goals
+- ...
+- ...
+
+## Tasks
+- [ ] Step-by-step change (one file per bullet)
+- [ ] Update docs (`README.md`, `docs/EXAMPLES.md`)
+
+## Definition of Done
+- `bun run build && bun run verify`
+- Documentation refreshed
+```
+
+## Helpful Links
+
+- `README.md` – Install steps and everyday usage
+- `docs/EXAMPLES.md` – Copy-ready command samples
+- `docs/API.md` – Request/response reference for automation
+- `docs/TROUBLESHOOTING.md` – Extended problem-solving tips
+- `docs/CONTRIBUTING.md` – How to propose changes, run builds, and open PRs
