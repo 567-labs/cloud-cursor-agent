@@ -11,6 +11,15 @@ interface DeleteOptions {
   force?: boolean;
 }
 
+/**
+ * Delete a single agent, optionally forcing deletion while it is running.
+ *
+ * @param {CommandContext} context - Shared CLI context with the API client.
+ * @param {DeleteOptions} options - Agent ID and force flag.
+ * @returns {Promise<void>} Resolves after the agent is deleted or an error is emitted.
+ * @example
+ * await executeDelete(context, { agentId: "bc_abc123", force: true });
+ */
 export async function executeDelete(
   context: CommandContext,
   options: DeleteOptions,

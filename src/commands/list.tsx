@@ -13,6 +13,15 @@ interface ListOptions {
   dir?: string;
 }
 
+/**
+ * Convert an agent status into a text-friendly symbol for terminal output.
+ *
+ * @param {string} status - Agent status string such as `RUNNING`.
+ * @returns {string} Square-bracketed unicode symbol describing the status.
+ * @example
+ * getStatusSymbol("FAILED");
+ * // => "[✗]"
+ */
 function getStatusSymbol(status: string): string {
   switch (status) {
     case "CREATING":
@@ -30,6 +39,15 @@ function getStatusSymbol(status: string): string {
   }
 }
 
+/**
+ * Normalize repository URLs for comparisons by stripping protocol, suffix, and case.
+ *
+ * @param {string} url - Repository URL sourced from git info or API.
+ * @returns {string} Normalized repository identifier.
+ * @example
+ * normalizeRepo("https://github.com/context/app.git");
+ * // => "github.com/context/app"
+ */
 function normalizeRepo(url: string): string {
   if (!url) return "";
   return url
@@ -40,6 +58,15 @@ function normalizeRepo(url: string): string {
     .trim();
 }
 
+/**
+ * List cloud agents either in an interactive Ink UI or plain text mode.
+ *
+ * @param {CommandContext} context - Shared CLI context with API client and working directory.
+ * @param {ListOptions} options - Flags such as non-interactive output and git directory.
+ * @returns {Promise<void>} Resolves when rendering or printing finishes.
+ * @example
+ * await executeList(context, { "non-interactive": true });
+ */
 export async function executeList(
   context: CommandContext,
   options: ListOptions

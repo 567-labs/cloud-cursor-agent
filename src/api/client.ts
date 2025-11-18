@@ -36,6 +36,14 @@ export class CloudAgentsApiClient {
   private baseUrl: string;
   private apiKey: string;
 
+  /**
+   * Create a new API client instance.
+   *
+   * @param {string} apiKey - Cursor API key (usually from `CURSOR_API_KEY`).
+   * @param {string} [baseUrl="https://api.cursor.com"] - Alternate API host, mainly for testing.
+   * @example
+   * const client = new CloudAgentsApiClient(process.env.CURSOR_API_KEY!);
+   */
   constructor(apiKey: string, baseUrl: string = "https://api.cursor.com") {
     if (!apiKey || typeof apiKey !== "string" || apiKey.trim().length === 0) {
       throw new Error(
@@ -47,8 +55,13 @@ export class CloudAgentsApiClient {
   }
 
   /**
-   * Get Basic Auth header value
-   * Format: Basic <base64(apiKey + ':')>
+   * Build the HTTP Basic Auth header value used by every request.
+   *
+   * @returns {string} Encoded header string like `Basic abc123=`.
+   * @example
+   * // Private helper; example shown for completeness only.
+   * const header = client["getAuthHeader"]();
+   * // => "Basic Zm9vOg=="
    */
   private getAuthHeader(): string {
     const credentials = `${this.apiKey}:`;
@@ -57,7 +70,15 @@ export class CloudAgentsApiClient {
   }
 
   /**
-   * Make an HTTP request to the API
+   * Make an HTTP request to the Cursor Cloud Agents API.
+   *
+   * @template T
+   * @param {string} method - HTTP method such as `GET` or `POST`.
+   * @param {string} path - Relative path beginning with `/v0`.
+   * @param {unknown} [body] - Optional JSON-serializable payload.
+   * @returns {Promise<T>} Parsed JSON body from the API.
+   * @example
+   * const agent = await client["request"]<Agent>("GET", "/v0/agents/123");
    */
   private async request<T>(
     method: string,
@@ -206,8 +227,14 @@ export class CloudAgentsApiClient {
   }
 
   /**
-   * List all cloud agents for the authenticated user
+   * List all cloud agents for the authenticated user.
    * GET /v0/agents
+   *
+   * @param {number} [limit] - Maximum number of agents to fetch per call.
+   * @param {string} [cursor] - Cursor for paginating through large result sets.
+   * @returns {Promise<ListAgentsResponse>} Paginated response with agents and next cursor.
+   * @example
+   * const { agents } = await client.listAgents(25);
    */
   async listAgents(
     limit?: number,
@@ -228,24 +255,42 @@ export class CloudAgentsApiClient {
   }
 
   /**
-   * Retrieve the current status and results of a cloud agent
+   * Retrieve the current status and results of a cloud agent.
    * GET /v0/agents/{id}
+   *
+   * @param {string} id - Agent identifier (for example, `bc_abc123`).
+   * @returns {Promise<Agent>} Full agent object with latest status.
+   * @example
+   * const agent = await client.getAgentStatus("bc_abc123");
    */
   async getAgentStatus(id: string): Promise<Agent> {
     return this.request<Agent>("GET", `/v0/agents/${id}`);
   }
 
   /**
-   * Start a new cloud agent to work on your repository
+   * Start a new cloud agent to work on your repository.
    * POST /v0/agents
+   *
+   * @param {LaunchAgentRequest} request - Prompt, source repo, and optional target configuration.
+   * @returns {Promise<Agent>} Newly created agent record.
+   * @example
+   * const agent = await client.launchAgent({
+   *   prompt: { text: "# Fix bugs" },
+   *   source: { repository: "https://github.com/org/repo", ref: "main" },
+   * });
    */
   async launchAgent(request: LaunchAgentRequest): Promise<Agent> {
     return this.request<Agent>("POST", "/v0/agents", request);
   }
 
   /**
-   * Retrieve the conversation history of a cloud agent
+   * Retrieve the conversation history of a cloud agent.
    * GET /v0/agents/{id}/conversation
+   *
+   * @param {string} id - Agent identifier to inspect.
+   * @returns {Promise<AgentConversation>} Conversation messages and metadata.
+   * @example
+   * const convo = await client.getAgentConversation("bc_abc123");
    */
   async getAgentConversation(id: string): Promise<AgentConversation> {
     return this.request<AgentConversation>(
@@ -255,8 +300,15 @@ export class CloudAgentsApiClient {
   }
 
   /**
-   * Add a follow-up instruction to an existing cloud agent
+   * Add a follow-up instruction to an existing cloud agent.
    * POST /v0/agents/{id}/followup
+   *
+   * @param {string} id - Agent identifier to send the follow-up to.
+   * @param {{ text: string; images?: Array<{ data: string; dimension: { width: number; height: number } }> }} prompt -
+   *   Follow-up payload containing plain text and optional inline images.
+   * @returns {Promise<AddFollowupResponse>} API response describing the follow-up.
+   * @example
+   * await client.addFollowup("bc_abc123", { text: "Please re-run the tests." });
    */
   async addFollowup(
     id: string,
@@ -276,33 +328,50 @@ export class CloudAgentsApiClient {
   }
 
   /**
-   * Delete a cloud agent
+   * Delete a cloud agent.
    * DELETE /v0/agents/{id}
+   *
+   * @param {string} id - Agent identifier to delete.
+   * @returns {Promise<DeleteAgentResponse>} Confirmation payload (often empty).
+   * @example
+   * await client.deleteAgent("bc_abc123");
    */
   async deleteAgent(id: string): Promise<DeleteAgentResponse> {
     return this.request<DeleteAgentResponse>("DELETE", `/v0/agents/${id}`);
   }
 
   /**
-   * Retrieve information about the API key being used for authentication
+   * Retrieve information about the API key being used for authentication.
    * GET /v0/me
+   *
+   * @returns {Promise<ApiKeyInfo>} Metadata describing the authenticated user and key.
+   * @example
+   * const info = await client.getApiKeyInfo();
    */
   async getApiKeyInfo(): Promise<ApiKeyInfo> {
     return this.request<ApiKeyInfo>("GET", "/v0/me");
   }
 
   /**
-   * Retrieve a list of recommended models for cloud agents
+   * Retrieve a list of recommended models for cloud agents.
    * GET /v0/models
+   *
+   * @returns {Promise<ModelsResponse>} Available model identifiers and metadata.
+   * @example
+   * const models = await client.listModels();
    */
   async listModels(): Promise<ModelsResponse> {
     return this.request<ModelsResponse>("GET", "/v0/models");
   }
 
   /**
-   * Retrieve a list of GitHub repositories accessible to the authenticated user
+   * Retrieve a list of GitHub repositories accessible to the authenticated user.
    * GET /v0/repositories
    * Note: This endpoint has strict rate limits (1/user/minute, 30/user/hour)
+   *
+   * @returns {Promise<ListRepositoriesResponse>} Repository records with pagination.
+   * @example
+   * const repos = await client.listRepositories();
    */
   async listRepositories(): Promise<ListRepositoriesResponse> {
     return this.request<ListRepositoriesResponse>("GET", "/v0/repositories");

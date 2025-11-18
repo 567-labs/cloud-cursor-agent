@@ -13,6 +13,15 @@ interface FollowupOptions {
   prompt: string;
 }
 
+/**
+ * Add a follow-up instruction to an in-progress agent.
+ *
+ * @param {CommandContext} context - Shared CLI context containing the API client.
+ * @param {FollowupOptions} options - Agent ID and prompt string (text, file, or stdin).
+ * @returns {Promise<void>} Resolves once the follow-up is accepted by the API.
+ * @example
+ * await executeFollowup(context, { agentId: "bc_abc123", prompt: "Please run the tests." });
+ */
 export async function executeFollowup(
   context: CommandContext,
   options: FollowupOptions,

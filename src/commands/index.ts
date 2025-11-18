@@ -16,7 +16,15 @@ import { executeDelete } from "./delete.js";
 import { executeBatchDelete } from "./batch-delete.js";
 
 /**
- * Register all commands with Commander.js program
+ * Register all CLI commands with a Commander.js program instance.
+ *
+ * @param {Command} program - Commander.js program to populate with commands.
+ * @param {CommandContext} context - Shared CLI context providing dependencies to handlers.
+ * @returns {void} Registers commands in-place on the provided program.
+ * @example
+ * const program = new Command();
+ * registerCommands(program, context);
+ * program.parse(process.argv);
  */
 export function registerCommands(program: Command, context: CommandContext): void {
   // Launch command

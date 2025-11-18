@@ -26,6 +26,15 @@ interface LaunchOptions {
   dir?: string;
 }
 
+/**
+ * Launch a cloud agent using CLI-provided options and plan files.
+ *
+ * @param {CommandContext} context - Shared CLI context with API client and working directory.
+ * @param {LaunchOptions} options - Plan path, repo/ref overrides, and behavior flags.
+ * @returns {Promise<void>} Resolves once the agent is launched or an error is raised.
+ * @example
+ * await executeLaunch(context, { plan: "plan.md", repo: "https://github.com/org/repo", ref: "main" });
+ */
 export async function executeLaunch(
   context: CommandContext,
   options: LaunchOptions,

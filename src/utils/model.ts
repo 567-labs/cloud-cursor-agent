@@ -96,14 +96,17 @@ const SIMPLE_KEYWORDS = [
 ];
 
 /**
- * Analyze plan content to determine the appropriate model
+ * Analyze plan content to determine the appropriate model.
  * 
  * Uses heuristics based on keywords and plan complexity:
  * - Fast model (composer-1): Simple tasks like bug fixes, small changes, typo fixes
  * - Smart model (gpt-5.1-codex): Complex tasks like refactors, architecture changes, multi-step tasks
  * 
- * @param planContent - The plan content to analyze
- * @returns The recommended model name
+ * @param {string} planContent - Markdown or plain text plan describing the requested work.
+ * @returns {string} The recommended model name from {@link MODELS}.
+ * @example
+ * selectModel("# Plan\\n- Fix typo");
+ * // => MODELS.FAST
  */
 export function selectModel(planContent: string): string {
   const content = planContent.toLowerCase();
@@ -145,10 +148,13 @@ export function selectModel(planContent: string): string {
 }
 
 /**
- * Validate that a model name is one of the supported models
+ * Validate that a model name is one of the supported models.
  * 
- * @param model - The model name to validate
- * @returns True if the model is supported, false otherwise
+ * @param {string} model - Arbitrary model identifier coming from user input.
+ * @returns {boolean} `true` if the model is supported, `false` otherwise.
+ * @example
+ * isValidModel("composer-1");
+ * // => true
  */
 export function isValidModel(model: string): boolean {
   return Object.values(MODELS).includes(model as typeof MODELS[keyof typeof MODELS]);

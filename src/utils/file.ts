@@ -32,6 +32,10 @@ function stripFrontmatter(content: string): string {
  *
  * @returns {Promise<string>} Resolved text contents from stdin.
  * @throws {Error} When stdin cannot be read.
+ * @example
+ * // Inside an async function
+ * const input = await readFromStdin();
+ * // => "user provided text"
  */
 async function readFromStdin(): Promise<string> {
   return new Promise((resolve, reject) => {
