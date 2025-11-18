@@ -219,7 +219,7 @@ describe("validateApiKey", () => {
   test("returns error for empty key", () => {
     expect(validateApiKey("")).toEqual({
       valid: false,
-      error: "API key cannot be empty.",
+      error: "API key is required.",
     });
   });
 
@@ -280,7 +280,7 @@ describe("validatePlanFilePath", () => {
   test("returns error for empty path", () => {
     expect(validatePlanFilePath("")).toEqual({
       valid: false,
-      error: "Plan file path cannot be empty.",
+      error: "Plan file path is required.",
     });
   });
 
@@ -326,7 +326,7 @@ describe("validatePlanContent", () => {
   test("returns error for empty content", () => {
     expect(validatePlanContent("")).toEqual({
       valid: false,
-      error: "Plan content cannot be empty.",
+      error: "Plan content is required.",
     });
   });
 
@@ -350,11 +350,12 @@ describe("validatePlanContent", () => {
     expect(validatePlanContent("TODO")).toEqual({
       valid: false,
       error:
-        "Plan content cannot be a placeholder like TODO or TBD. Provide concrete steps.",
+        "Plan content is too short. Add a few sentences or bullet points describing the work.",
     });
     expect(validatePlanContent("TBD")).toEqual({
       valid: false,
-      error: expect.stringContaining("placeholder"),
+      error:
+        "Plan content is too short. Add a few sentences or bullet points describing the work.",
     });
   });
 

@@ -21,7 +21,7 @@ describe("executeOpen", () => {
   let context: CommandContext;
   let mockOpenInBrowser: any;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks();
     context = {
       apiClient: createMockApiClient(),
