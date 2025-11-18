@@ -15,7 +15,7 @@ interface FollowupOptions {
 
 export async function executeFollowup(
   context: CommandContext,
-  options: FollowupOptions
+  options: FollowupOptions,
 ): Promise<void> {
   const { apiClient } = context;
   const { agentId, prompt } = options;
@@ -25,7 +25,12 @@ export async function executeFollowup(
   if (!agentIdValidation.valid) {
     console.error(`Error: ${agentIdValidation.error}`);
     console.error("");
-    console.error("Agent ID must look like bc_123abc (letters and numbers only, at least 5 characters after bc_).");
+    console.error(
+      "Agent ID must look like bc_123abc (letters and numbers only, at least 5 characters after bc_).",
+    );
+    console.error(
+      "Tip: run bun run cloud-agent.tsx list and copy the id from that table.",
+    );
     process.exit(1);
   }
 
@@ -55,15 +60,27 @@ export async function executeFollowup(
     }
 
     if (!promptText.trim()) {
-      console.error("Error: Prompt cannot be empty");
+      console.error("Error: Prompt cannot be empty.");
+      console.error(
+        'Try again with quoted text ("fix the README") or reference a file like @followup.md.',
+      );
       process.exit(1);
     }
 
     // Check agent status
     const agent = await apiClient.getAgentStatus(agentId);
-    
-    if (agent.status === "FINISHED" || agent.status === "FAILED" || agent.status === "CANCELLED") {
-      console.error(`Error: Cannot add follow-up to agent that is ${agent.status.toLowerCase()}.`);
+
+    if (
+      agent.status === "FINISHED" ||
+      agent.status === "FAILED" ||
+      agent.status === "CANCELLED"
+    ) {
+      console.error(
+        `Error: Cannot add follow-up because the agent is already ${agent.status.toLowerCase()}.`,
+      );
+      console.error(
+        "Start a new agent with cloud-agent launch or rerun watch to confirm the latest status.",
+      );
       process.exit(1);
       return;
     }
@@ -74,13 +91,24 @@ export async function executeFollowup(
     console.log(`Follow-up instruction added to agent ${agentId}`);
   } catch (error) {
     if (error instanceof ApiError) {
-      console.error(`Error: ${error.message}`);
+      console.error(
+        "Follow-up failed: the API did not accept the instruction.",
+      );
+      console.error(`Reason: ${error.message}`);
+      console.error(
+        'Example: bun run cloud-agent.tsx followup bc_123abc --prompt "Add tests for status util"',
+      );
     } else if (error instanceof Error) {
-      console.error(`Error: ${error.message}`);
+      console.error(`Unexpected follow-up error: ${error.message}`);
+      console.error(
+        "Double-check the file path or text you passed to --prompt.",
+      );
     } else {
-      console.error("Error: Failed to add follow-up");
+      console.error("Error: Failed to add follow-up due to an unknown issue.");
+      console.error(
+        "Retry in a few seconds or confirm the agent id with cloud-agent status <id>.",
+      );
     }
     process.exit(1);
   }
 }
-

@@ -13,7 +13,7 @@ interface ConversationOptions {
 
 export async function executeConversation(
   context: CommandContext,
-  options: ConversationOptions
+  options: ConversationOptions,
 ): Promise<void> {
   const { apiClient } = context;
   const { agentId, "non-interactive": nonInteractive } = options;
@@ -23,7 +23,12 @@ export async function executeConversation(
   if (!agentIdValidation.valid) {
     console.error(`Error: ${agentIdValidation.error}`);
     console.error("");
-    console.error("Agent ID must look like bc_123abc (letters and numbers only, at least 5 characters after bc_).");
+    console.error(
+      "Agent ID must look like bc_123abc (letters and numbers only, at least 5 characters after bc_).",
+    );
+    console.error(
+      "Tip: run bun run cloud-agent.tsx list to find the id you need.",
+    );
     process.exit(1);
   }
 
@@ -62,13 +67,22 @@ export async function executeConversation(
     }
   } catch (error) {
     if (error instanceof ApiError) {
-      console.error(`Error: ${error.message}`);
+      console.error(
+        "Conversation fetch failed: the API did not return the message log.",
+      );
+      console.error(`Reason: ${error.message}`);
+      console.error(
+        "Hint: make sure the agent still exists and that your CURSOR_API_KEY is valid.",
+      );
     } else if (error instanceof Error) {
-      console.error(`Error: ${error.message}`);
+      console.error(`Unexpected conversation error: ${error.message}`);
+      console.error(
+        "Try rerunning with --non-interactive if the terminal cannot render emojis.",
+      );
     } else {
-      console.error("Error: Failed to get conversation");
+      console.error("Error: Failed to get conversation for an unknown reason.");
+      console.error("Wait a moment, then retry with the same agent id.");
     }
     process.exit(1);
   }
 }
-

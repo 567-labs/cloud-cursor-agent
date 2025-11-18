@@ -13,7 +13,7 @@ interface DeleteOptions {
 
 export async function executeDelete(
   context: CommandContext,
-  options: DeleteOptions
+  options: DeleteOptions,
 ): Promise<void> {
   const { apiClient } = context;
   const { agentId, force = false } = options;
@@ -23,7 +23,12 @@ export async function executeDelete(
   if (!agentIdValidation.valid) {
     console.error(`Error: ${agentIdValidation.error}`);
     console.error("");
-    console.error("Agent ID must look like bc_123abc (letters and numbers only, at least 5 characters after bc_).");
+    console.error(
+      "Agent ID must look like bc_123abc (letters and numbers only, at least 5 characters after bc_).",
+    );
+    console.error(
+      "Use bun run cloud-agent.tsx list to copy ids directly from the table.",
+    );
     process.exit(1);
   }
 
@@ -32,8 +37,15 @@ export async function executeDelete(
     if (!force) {
       const agent = await apiClient.getAgentStatus(agentId);
       if (agent.status === "RUNNING" || agent.status === "CREATING") {
-        console.error(`Error: Cannot delete agent that is ${agent.status.toLowerCase()}.`);
-        console.error("Use --force to delete anyway, or wait for the agent to complete.");
+        console.error(
+          `Error: Cannot delete agent that is ${agent.status.toLowerCase()}.`,
+        );
+        console.error(
+          "Use --force to delete anyway, or wait for the agent to complete.",
+        );
+        console.error(
+          "Example: bun run cloud-agent.tsx delete --agent-id bc_123abc --force",
+        );
         process.exit(1);
         return;
       }
@@ -43,13 +55,20 @@ export async function executeDelete(
     console.log(`Agent ${agentId} deleted successfully.`);
   } catch (error) {
     if (error instanceof ApiError) {
-      console.error(`Error: ${error.message}`);
+      console.error("Delete failed: the API rejected the request.");
+      console.error(`Reason: ${error.message}`);
+      console.error(
+        "Confirm that the agent still exists and that your API key can manage it.",
+      );
     } else if (error instanceof Error) {
-      console.error(`Error: ${error.message}`);
+      console.error(`Unexpected delete error: ${error.message}`);
+      console.error("Try again after checking your network connection.");
     } else {
-      console.error("Error: Failed to delete agent");
+      console.error("Error: Failed to delete agent due to an unknown issue.");
+      console.error(
+        "Retry soon or open the agent in Cursor to remove it from the UI.",
+      );
     }
     process.exit(1);
   }
 }
-
