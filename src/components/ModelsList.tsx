@@ -3,10 +3,12 @@
  * Displays available models for cloud agents
  */
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { Box, Text, useInput } from "ink";
 import { CloudAgentsApiClient, ApiError } from "../api/client.js";
 import { Spinner } from "./Spinner.js";
+import { useTerminalDimensions } from "../hooks/useTerminalDimensions.js";
+import { clampWidth } from "../utils/formatting.js";
 import type { ModelsResponse } from "../api/schemas.js";
 
 interface ModelsListProps {
@@ -15,9 +17,31 @@ interface ModelsListProps {
 }
 
 export function ModelsList({ apiClient, onBack }: ModelsListProps) {
+  const { terminalWidth, terminalHeight } = useTerminalDimensions();
   const [models, setModels] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Calculate separator width accounting for padding
+  const separatorWidth = useMemo(
+    () => clampWidth(terminalWidth - 4, 20),
+    [terminalWidth]
+  );
+
+  // Calculate available height accounting for header (2 lines), separator (1 line),
+  // tip text (2 lines), footer (1 line), and padding (2 lines) = 8 lines total
+  const availableHeight = useMemo(
+    () => Math.max(5, terminalHeight - 8),
+    [terminalHeight]
+  );
+
+  // Limit displayed models to fit within available height (1 line per model)
+  const displayedModels = useMemo(
+    () => models.slice(0, Math.max(1, availableHeight)),
+    [models, availableHeight]
+  );
+
+  const hasMoreModels = models.length > displayedModels.length;
 
   useEffect(() => {
     async function loadModels() {
@@ -48,12 +72,9 @@ export function ModelsList({ apiClient, onBack }: ModelsListProps) {
     }
   });
 
-  const terminalWidth = process.stdout.columns || 80;
-  const separatorWidth = terminalWidth - 4;
-
   if (loading) {
     return (
-      <Box padding={1}>
+      <Box padding={1} width={terminalWidth}>
         <Spinner text="Loading models..." />
       </Box>
     );
@@ -61,7 +82,7 @@ export function ModelsList({ apiClient, onBack }: ModelsListProps) {
 
   if (error) {
     return (
-      <Box padding={1} flexDirection="column">
+      <Box padding={1} flexDirection="column" width={terminalWidth}>
         <Text color="red">✗ Error: {error}</Text>
         <Box marginTop={1}>
           <Text color="gray">Press 'q' to go back</Text>
@@ -71,7 +92,7 @@ export function ModelsList({ apiClient, onBack }: ModelsListProps) {
   }
 
   return (
-    <Box flexDirection="column" padding={1}>
+    <Box flexDirection="column" padding={1} width={terminalWidth}>
       <Box marginBottom={1}>
         <Text bold>Available Models</Text>
       </Box>
@@ -85,7 +106,7 @@ export function ModelsList({ apiClient, onBack }: ModelsListProps) {
         </Box>
       ) : (
         <Box flexDirection="column" marginBottom={1}>
-          {models.map((model, index) => (
+          {displayedModels.map((model, index) => (
             <Box key={index} marginBottom={0}>
               <Text>
                 <Text color="gray"> • </Text>
@@ -93,6 +114,14 @@ export function ModelsList({ apiClient, onBack }: ModelsListProps) {
               </Text>
             </Box>
           ))}
+          {hasMoreModels && (
+            <Box marginTop={1}>
+              <Text color="gray" dimColor>
+                ... and {models.length - displayedModels.length} more model
+                {models.length - displayedModels.length === 1 ? "" : "s"}
+              </Text>
+            </Box>
+          )}
         </Box>
       )}
 

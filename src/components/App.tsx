@@ -10,6 +10,7 @@ import { AgentList } from "./AgentList.js";
 import { AgentStatus } from "./AgentStatus.js";
 import { ApiKeyInfo } from "./ApiKeyInfo.js";
 import { ModelsList } from "./ModelsList.js";
+import { useTerminalDimensions } from "../hooks/useTerminalDimensions.js";
 import type { CloudAgentsApiClient } from "../api/client.js";
 
 type View = "menu" | "list" | "status" | "apiKeyInfo" | "models";
@@ -33,8 +34,7 @@ export function App({
     string | undefined
   >(undefined);
   const { exit } = useApp();
-
-  const terminalWidth = process.stdout.columns || 80;
+  const { terminalWidth } = useTerminalDimensions();
 
   return (
     <Box width={terminalWidth}>

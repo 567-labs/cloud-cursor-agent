@@ -6,6 +6,7 @@
 import React, { useState } from "react";
 import { Box, Text, useInput } from "ink";
 import { useApp } from "ink";
+import { useTerminalDimensions } from "../hooks/useTerminalDimensions.js";
 
 interface MainMenuProps {
   onSelectListAgentsAll: () => void;
@@ -24,8 +25,7 @@ export function MainMenu({
 }: MainMenuProps) {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const { exit } = useApp();
-
-  const terminalWidth = process.stdout.columns || 80;
+  const { terminalWidth } = useTerminalDimensions();
 
   const options = [
     { label: "List Agents (This Repo)", action: onSelectListAgentsRepo },
