@@ -205,10 +205,86 @@ cloud-agent watch $AGENT_ID --verbose
 cloud-agent watch $AGENT_ID && echo "Success!" || echo "Failed"
 ```
 
+### Orchestration Workflow Example
+
+Combine `watch`, `conversation`, and `followup` for powerful orchestration:
+
+```bash
+# Launch an agent
+AGENT_ID=$(cloud-agent launch --plan plan.md)
+
+# Watch until it completes (or check periodically)
+cloud-agent watch $AGENT_ID --verbose
+
+# Review the conversation to understand what was done
+cloud-agent conversation $AGENT_ID
+
+# Send follow-up if needed (only works if agent is still RUNNING)
+cloud-agent followup $AGENT_ID --messages "Please add tests for the new feature"
+
+# Check conversation again to see the response
+cloud-agent conversation $AGENT_ID
+```
+
+This workflow is perfect for:
+
+- **Orchestration agents** that need to coordinate multiple downstream agents
+- **Code organization** where one agent reviews and guides another's work
+- **Iterative refinement** where follow-ups improve the initial work
+- **Automated workflows** that can parse conversation output and make decisions
+
+### Conversation Command
+
+View agent conversation history with status awareness:
+
+```bash
+# Non-interactive mode: view conversation for specific agent
+cloud-agent conversation <agent-id>
+
+# Interactive mode: select agent from list (press 'c' on selected agent)
+cloud-agent conversation
+```
+
+The conversation command displays:
+
+- Agent status (RUNNING, FINISHED, etc.)
+- Agent ID
+- All user messages and agent responses
+- Plain text format suitable for parsing by scripts/AI
+
+### Followup Command
+
+Send follow-up instructions to running agents. Perfect for orchestration workflows where one agent needs to guide another:
+
+```bash
+# Send direct text follow-up
+cloud-agent followup <agent-id> --messages "Please add tests for the new feature"
+
+# Send follow-up from file
+cloud-agent followup <agent-id> --messages @plan.md
+
+# Send follow-up from stdin (heredoc)
+cloud-agent followup <agent-id> --messages - <<'EOF'
+Please review the changes and add documentation.
+EOF
+```
+
+The followup command:
+
+- Shows agent status before sending (only RUNNING/CREATING agents can receive follow-ups)
+- Validates agent state automatically
+- Supports multiple input methods (text, file, stdin)
+- Displays status in success message
+
+**Orchestration Use Case:** This is ideal for organizing code and allowing orchestration agents to send follow-up messages to downstream agents. An orchestration agent can:
+
+1. Launch multiple agents with `launch`
+2. Monitor their progress with `watch`
+3. Check their conversation with `conversation`
+4. Send targeted follow-ups with `followup` based on their work
+
 ### Other Useful Commands
 
-- `cloud-agent followup <agent-id> <prompt>` - Add follow-up instructions
-- `cloud-agent conversation <agent-id>` - View agent conversation/logs
 - `cloud-agent open <agent-id>` - Open agent URL in browser
 - `cloud-agent delete <agent-id>` - Delete an agent
 - `cloud-agent cancel <agent-id>` - Cancel a running agent
