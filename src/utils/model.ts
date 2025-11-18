@@ -97,11 +97,11 @@ const SIMPLE_KEYWORDS = [
 
 /**
  * Analyze plan content to determine the appropriate model.
- * 
+ *
  * Uses heuristics based on keywords and plan complexity:
  * - Fast model (composer-1): Simple tasks like bug fixes, small changes, typo fixes
  * - Smart model (gpt-5.1-codex): Complex tasks like refactors, architecture changes, multi-step tasks
- * 
+ *
  * @param {string} planContent - Markdown or plain text plan describing the requested work.
  * @returns {string} The recommended model name from {@link MODELS}.
  * @example
@@ -110,22 +110,24 @@ const SIMPLE_KEYWORDS = [
  */
 export function selectModel(planContent: string): string {
   const content = planContent.toLowerCase();
-  
+
   // Count occurrences of complex and simple keywords
   const complexCount = COMPLEX_KEYWORDS.reduce((count, keyword) => {
     return count + (content.includes(keyword) ? 1 : 0);
   }, 0);
-  
+
   const simpleCount = SIMPLE_KEYWORDS.reduce((count, keyword) => {
     return count + (content.includes(keyword) ? 1 : 0);
   }, 0);
-  
+
   // Count number of bullet points or steps (indicates complexity)
   const stepCount = (planContent.match(/^[-*]\s/gm) || []).length;
-  
+
   // Count number of lines (longer plans tend to be more complex)
-  const lineCount = planContent.split("\n").filter(line => line.trim().length > 0).length;
-  
+  const lineCount = planContent
+    .split("\n")
+    .filter((line) => line.trim().length > 0).length;
+
   // Use smart model if:
   // - More complex keywords than simple keywords
   // - More than 5 steps/bullet points
@@ -142,14 +144,14 @@ export function selectModel(planContent: string): string {
   ) {
     return MODELS.SMART;
   }
-  
+
   // Default to fast model for simple tasks
   return MODELS.FAST;
 }
 
 /**
  * Validate that a model name is one of the supported models.
- * 
+ *
  * @param {string} model - Arbitrary model identifier coming from user input.
  * @returns {boolean} `true` if the model is supported, `false` otherwise.
  * @example
@@ -157,6 +159,7 @@ export function selectModel(planContent: string): string {
  * // => true
  */
 export function isValidModel(model: string): boolean {
-  return Object.values(MODELS).includes(model as typeof MODELS[keyof typeof MODELS]);
+  return Object.values(MODELS).includes(
+    model as (typeof MODELS)[keyof typeof MODELS]
+  );
 }
-

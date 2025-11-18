@@ -1,10 +1,10 @@
 /**
  * Agent list input handling hook
- * 
+ *
  * Handles all keyboard input for the agent list component, including navigation,
  * filtering, grouping, pagination, and agent actions. This hook centralizes
  * all input handling logic for better maintainability.
- * 
+ *
  * @module hooks/useAgentListInput
  */
 
@@ -79,7 +79,7 @@ export interface AgentListInputState {
 
 /**
  * Hook for handling keyboard input in agent list.
- * 
+ *
  * Handles:
  * - Navigation (arrow keys, j/k)
  * - Filtering (1-5, a)
@@ -88,10 +88,10 @@ export interface AgentListInputState {
  * - Pagination (left/right arrows)
  * - Expansion/collapse (Enter)
  * - Browser opening (double Enter)
- * 
+ *
  * @param handlers - Action handlers
  * @param state - Current state values
- * 
+ *
  * @example
  * ```tsx
  * function AgentList() {
@@ -100,15 +100,15 @@ export interface AgentListInputState {
  *     onRefresh: () => refresh(),
  *     // ... other handlers
  *   };
- *   
+ *
  *   const state = {
  *     selectedIndex: 0,
  *     expandedAgentId: null,
  *     // ... other state
  *   };
- *   
+ *
  *   useAgentListInput(handlers, state);
- *   
+ *
  *   // Component renders...
  * }
  * ```
@@ -217,7 +217,9 @@ export function useAgentListInput(
           await openInBrowser(urlToOpen);
           setTimeout(() => setOpeningBrowser(null), 1000);
         } catch (err) {
-          setError(err instanceof Error ? err.message : "Failed to open browser");
+          setError(
+            err instanceof Error ? err.message : "Failed to open browser"
+          );
           setTimeout(() => setOpeningBrowser(null), 2000);
         }
       } else {
@@ -227,4 +229,3 @@ export function useAgentListInput(
     }
   });
 }
-

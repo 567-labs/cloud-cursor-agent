@@ -13,5 +13,3 @@ export interface CommandContext {
   /** Working directory for git detection */
   workingDir: string;
 }
-
-

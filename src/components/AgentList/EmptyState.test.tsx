@@ -14,7 +14,9 @@ describe("EmptyState", () => {
 
   test("no filter: shows instruction to create first agent", () => {
     render(<EmptyState statusFilter={null} />);
-    expect(screen.getByText(/To create your first cloud agent, run:/)).toBeDefined();
+    expect(
+      screen.getByText(/To create your first cloud agent, run:/)
+    ).toBeDefined();
   });
 
   test("no filter: shows command example", () => {
@@ -24,15 +26,21 @@ describe("EmptyState", () => {
 
   test("status filter: shows 'No agents found with status: [label]'", () => {
     render(<EmptyState statusFilter="RUNNING" />);
-    expect(screen.getByText(/No agents found with status: Running/)).toBeDefined();
+    expect(
+      screen.getByText(/No agents found with status: Running/)
+    ).toBeDefined();
   });
 
   test("status filter: shows correct status label", () => {
     render(<EmptyState statusFilter="FINISHED" />);
-    expect(screen.getByText(/No agents found with status: Finished/)).toBeDefined();
+    expect(
+      screen.getByText(/No agents found with status: Finished/)
+    ).toBeDefined();
 
     const { rerender } = render(<EmptyState statusFilter="FAILED" />);
-    expect(screen.getByText(/No agents found with status: Failed/)).toBeDefined();
+    expect(
+      screen.getByText(/No agents found with status: Failed/)
+    ).toBeDefined();
   });
 
   test("status filter: shows instruction to press 'a' to show all", () => {
@@ -49,11 +57,19 @@ describe("EmptyState", () => {
   });
 
   test("handles all status types correctly", () => {
-    const statuses = ["CREATING", "RUNNING", "FINISHED", "FAILED", "CANCELLED"] as const;
+    const statuses = [
+      "CREATING",
+      "RUNNING",
+      "FINISHED",
+      "FAILED",
+      "CANCELLED",
+    ] as const;
 
     statuses.forEach((status) => {
       const { unmount } = render(<EmptyState statusFilter={status} />);
-      expect(screen.getByText(new RegExp(`No agents found with status:`))).toBeDefined();
+      expect(
+        screen.getByText(new RegExp(`No agents found with status:`))
+      ).toBeDefined();
       unmount();
     });
   });
@@ -64,4 +80,3 @@ describe("EmptyState", () => {
     expect(screen.queryByText(/cloud-agent launch/)).toBeNull();
   });
 });
-

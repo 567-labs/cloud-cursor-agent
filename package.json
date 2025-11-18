@@ -12,7 +12,10 @@
     "verify": "test -f cli.js && test -x cli.js && echo '✓ Build verification: cli.js exists and is executable' || echo '✗ Build verification failed'",
     "test": "bun test",
     "test:watch": "bun test --watch",
-    "test:coverage": "bun test --coverage"
+    "test:coverage": "bun test --coverage",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "prepare": "husky"
   },
   "keywords": [],
   "author": "",
@@ -26,10 +29,13 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
-    "@types/react": "^18.2.0",
-    "@types/node": "^20.0.0",
-    "@testing-library/react": "^16.0.1",
     "@testing-library/jest-dom": "^6.6.3",
-    "@testing-library/user-event": "^14.5.2"
+    "@testing-library/react": "^16.0.1",
+    "@testing-library/user-event": "^14.5.2",
+    "@types/node": "^20.0.0",
+    "@types/react": "^18.2.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.6",
+    "prettier": "^3.6.2"
   }
 }

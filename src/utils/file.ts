@@ -40,20 +40,20 @@ function stripFrontmatter(content: string): string {
 async function readFromStdin(): Promise<string> {
   return new Promise((resolve, reject) => {
     const chunks: (string | Buffer)[] = [];
-    
+
     // Set encoding to utf8 so chunks are strings
     stdin.setEncoding("utf8");
-    
+
     stdin.on("data", (chunk: string | Buffer) => {
       chunks.push(chunk);
     });
-    
+
     stdin.on("end", () => {
       // If encoding is set, chunks are strings; otherwise they're Buffers
       const content = chunks.join("");
       resolve(content);
     });
-    
+
     stdin.on("error", (error: Error) => {
       reject(new Error(`Failed to read from stdin: ${error.message}`));
     });
@@ -65,7 +65,7 @@ async function readFromStdin(): Promise<string> {
  *
  * Supports both relative and absolute paths, trims the result, and removes
  * YAML frontmatter for markdown files so downstream parsing stays simple.
- * 
+ *
  * When filePath is "-", reads from stdin (useful for heredoc syntax).
  *
  * @param {string} filePath - Path to the file (relative or absolute), or "-" for stdin.
@@ -74,7 +74,7 @@ async function readFromStdin(): Promise<string> {
  * @example
  * // Read from file
  * const content = await readPlanFile("plan.md");
- * 
+ *
  * // Read from stdin (use with heredoc)
  * // cloud-agent launch --plan - <<'EOF'
  * // ... content ...
@@ -84,21 +84,25 @@ async function readFromStdin(): Promise<string> {
 export async function readPlanFile(filePath: string): Promise<string> {
   try {
     let content: string;
-    
+
     // Read from stdin if "-" is specified
     if (filePath === "-") {
       content = await readFromStdin();
     } else {
       // Resolve the path (handles both relative and absolute)
       const resolvedPath = resolve(filePath);
-      
+
       // Read the file
       content = await readFile(resolvedPath, "utf-8");
     }
 
     // Strip frontmatter if it's a markdown file
     // For stdin, we check if content starts with frontmatter
-    if (filePath.endsWith(".md") || filePath.endsWith(".markdown") || filePath === "-") {
+    if (
+      filePath.endsWith(".md") ||
+      filePath.endsWith(".markdown") ||
+      filePath === "-"
+    ) {
       return stripFrontmatter(content).trim();
     }
 
@@ -108,9 +112,12 @@ export async function readPlanFile(filePath: string): Promise<string> {
       if ("code" in error && error.code === "ENOENT") {
         throw new Error(`File not found: ${filePath}`);
       }
-      throw new Error(`Failed to read ${filePath === "-" ? "stdin" : `file ${filePath}`}: ${error.message}`);
+      throw new Error(
+        `Failed to read ${filePath === "-" ? "stdin" : `file ${filePath}`}: ${error.message}`
+      );
     }
-    throw new Error(`Failed to read ${filePath === "-" ? "stdin" : `file ${filePath}`}: Unknown error`);
+    throw new Error(
+      `Failed to read ${filePath === "-" ? "stdin" : `file ${filePath}`}: Unknown error`
+    );
   }
 }
-

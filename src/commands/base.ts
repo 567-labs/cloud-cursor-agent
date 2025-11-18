@@ -13,7 +13,8 @@ export interface Command {
   /** Command description */
   description: string;
   /** Execute the command */
-  execute(context: CommandContext, options: Record<string, unknown>): Promise<void>;
+  execute(
+    context: CommandContext,
+    options: Record<string, unknown>
+  ): Promise<void>;
 }
-
-

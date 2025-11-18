@@ -134,7 +134,9 @@ describe("AgentItem", () => {
   });
 
   test("selection indicator: shows '>' when selected, ' ' when not", () => {
-    const { rerender } = render(<AgentItem {...defaultProps} isSelected={false} />);
+    const { rerender } = render(
+      <AgentItem {...defaultProps} isSelected={false} />
+    );
     expect(screen.getByText(/Test Agent/)).toBeDefined();
 
     rerender(<AgentItem {...defaultProps} isSelected={true} />);

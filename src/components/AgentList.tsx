@@ -1,11 +1,11 @@
 /**
  * AgentList component
- * 
+ *
  * Main component for displaying a list of cloud agents with filtering,
  * grouping, pagination, and interactive navigation. This component
  * orchestrates all the sub-components and hooks to provide a complete
  * agent list interface.
- * 
+ *
  * @module components/AgentList
  */
 
@@ -16,9 +16,19 @@ import { Spinner } from "./Spinner.js";
 import { useTerminalDimensions } from "../hooks/useTerminalDimensions.js";
 import { useAgentList } from "../hooks/useAgentList.js";
 import { useAgentListInput } from "../hooks/useAgentListInput.js";
-import { filterAgentsByStatus, flattenGroupedAgents } from "../utils/agentFiltering.js";
-import { groupAgentsByStatus, groupAgentsByRepository, getStatusDisplayOrder } from "../utils/grouping.js";
-import { calculateLayoutMetrics, calculateColumnLayout } from "../utils/layout.js";
+import {
+  filterAgentsByStatus,
+  flattenGroupedAgents,
+} from "../utils/agentFiltering.js";
+import {
+  groupAgentsByStatus,
+  groupAgentsByRepository,
+  getStatusDisplayOrder,
+} from "../utils/grouping.js";
+import {
+  calculateLayoutMetrics,
+  calculateColumnLayout,
+} from "../utils/layout.js";
 import { AgentListHeader } from "./AgentList/AgentListHeader.js";
 import { AgentListFooter } from "./AgentList/AgentListFooter.js";
 import { EmptyState } from "./AgentList/EmptyState.js";
@@ -32,7 +42,7 @@ interface AgentListProps {
 
 /**
  * Component for displaying and managing a list of cloud agents.
- * 
+ *
  * Features:
  * - Real-time terminal resize handling
  * - Responsive layout (wide/medium/compact)
@@ -43,10 +53,10 @@ interface AgentListProps {
  * - Keyboard navigation and shortcuts
  * - Agent expansion for detailed view
  * - Browser opening (PR or agent URL)
- * 
+ *
  * @param props - Component props
  * @returns Agent list UI
- * 
+ *
  * @example
  * ```tsx
  * <AgentList
@@ -56,7 +66,11 @@ interface AgentListProps {
  * />
  * ```
  */
-export function AgentList({ apiClient, onBack, repositoryFilter }: AgentListProps) {
+export function AgentList({
+  apiClient,
+  onBack,
+  repositoryFilter,
+}: AgentListProps) {
   const { terminalWidth, terminalHeight } = useTerminalDimensions();
 
   const layoutMetrics = useMemo(
@@ -65,7 +79,11 @@ export function AgentList({ apiClient, onBack, repositoryFilter }: AgentListProp
   );
 
   const columnLayout = useMemo(
-    () => calculateColumnLayout(layoutMetrics.availableContentWidth, layoutMetrics.breakpoint),
+    () =>
+      calculateColumnLayout(
+        layoutMetrics.availableContentWidth,
+        layoutMetrics.breakpoint
+      ),
     [layoutMetrics.availableContentWidth, layoutMetrics.breakpoint]
   );
 
@@ -111,7 +129,9 @@ export function AgentList({ apiClient, onBack, repositoryFilter }: AgentListProp
   // Resize-aware pagination: reload current page when agentsPerView changes
   useEffect(() => {
     // Skip if this is the initial load or if agentsPerView hasn't changed materially
-    if (Math.abs(layoutMetrics.agentsPerView - lastAgentsPerViewRef.current) <= 1) {
+    if (
+      Math.abs(layoutMetrics.agentsPerView - lastAgentsPerViewRef.current) <= 1
+    ) {
       return;
     }
 
@@ -125,7 +145,10 @@ export function AgentList({ apiClient, onBack, repositoryFilter }: AgentListProp
       loadAgents(currentPageCursor, layoutMetrics.agentsPerView);
 
       // Clear prevCursors if new page size is larger than cached pages can satisfy
-      if (layoutMetrics.agentsPerView > lastAgentsPerViewRef.current && prevCursors.length > 0) {
+      if (
+        layoutMetrics.agentsPerView > lastAgentsPerViewRef.current &&
+        prevCursors.length > 0
+      ) {
         setPrevCursors([]);
       }
 
@@ -160,7 +183,12 @@ export function AgentList({ apiClient, onBack, repositoryFilter }: AgentListProp
   }, [groupByRepository, groupedAgents]);
 
   const flattenedAgents = useMemo(
-    () => flattenGroupedAgents(groupedAgents, groupByRepository, statusDisplayOrder),
+    () =>
+      flattenGroupedAgents(
+        groupedAgents,
+        groupByRepository,
+        statusDisplayOrder
+      ),
     [groupedAgents, groupByRepository, statusDisplayOrder]
   );
 
@@ -216,7 +244,9 @@ export function AgentList({ apiClient, onBack, repositoryFilter }: AgentListProp
           return;
         } else {
           // Single Enter: Toggle expansion
-          setExpandedAgentId(expandedAgentId === selectedAgent.id ? null : selectedAgent.id);
+          setExpandedAgentId(
+            expandedAgentId === selectedAgent.id ? null : selectedAgent.id
+          );
           setLastEnterPress(now);
         }
       },

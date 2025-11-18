@@ -108,11 +108,7 @@ describe("AgentGroup", () => {
       createMockAgent({ id: "2", name: "Agent 2" }),
     ];
     render(
-      <AgentGroup
-        {...defaultProps}
-        agents={agents}
-        flattenedAgents={agents}
-      />
+      <AgentGroup {...defaultProps} agents={agents} flattenedAgents={agents} />
     );
 
     expect(screen.getByText(/Agent 1/)).toBeDefined();
@@ -122,11 +118,7 @@ describe("AgentGroup", () => {
   test("renders group footer separator", () => {
     const agents = [createMockAgent()];
     render(
-      <AgentGroup
-        {...defaultProps}
-        agents={agents}
-        flattenedAgents={agents}
-      />
+      <AgentGroup {...defaultProps} agents={agents} flattenedAgents={agents} />
     );
 
     // Footer separator should be rendered
@@ -135,10 +127,7 @@ describe("AgentGroup", () => {
   });
 
   test("handles selected index correctly", () => {
-    const agents = [
-      createMockAgent({ id: "1" }),
-      createMockAgent({ id: "2" }),
-    ];
+    const agents = [createMockAgent({ id: "1" }), createMockAgent({ id: "2" })];
     render(
       <AgentGroup
         {...defaultProps}
@@ -194,4 +183,3 @@ describe("AgentGroup", () => {
     expect(screen.getByText(/Test Agent/)).toBeDefined();
   });
 });
-

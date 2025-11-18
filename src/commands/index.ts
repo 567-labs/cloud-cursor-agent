@@ -26,36 +26,55 @@ import { executeBatchDelete } from "./batch-delete.js";
  * registerCommands(program, context);
  * program.parse(process.argv);
  */
-export function registerCommands(program: Command, context: CommandContext): void {
+export function registerCommands(
+  program: Command,
+  context: CommandContext
+): void {
   // Launch command
   program
     .command("launch")
     .description("Launch an agent from a plan file")
-    .requiredOption("--plan <file>", "Plan file to use as prompt (required for launch). Use \"-\" to read from stdin (supports heredoc syntax)")
+    .requiredOption(
+      "--plan <file>",
+      'Plan file to use as prompt (required for launch). Use "-" to read from stdin (supports heredoc syntax)'
+    )
     .option("--repo <url>", "Repository URL (auto-detected if not provided)")
-    .option("--ref <ref>", "Git ref (branch/tag/commit) (auto-detected if not provided)")
+    .option(
+      "--ref <ref>",
+      "Git ref (branch/tag/commit) (auto-detected if not provided)"
+    )
     .option("--branch <name>", "Target branch name")
-    .option("--no-auto-pr", "Disable automatic PR creation (PR creation is default)")
-    .option("--model <name>", "Model to use (composer-1 or gpt-5.1-codex). If not provided, model is auto-selected based on plan")
+    .option(
+      "--no-auto-pr",
+      "Disable automatic PR creation (PR creation is default)"
+    )
+    .option(
+      "--model <name>",
+      "Model to use (composer-1 or gpt-5.1-codex). If not provided, model is auto-selected based on plan"
+    )
     .option("--verbose, -v", "Show verbose output")
     .option("--dir <path>", "Working directory for git detection")
     .action(async (options) => {
       await executeLaunch(context, options);
     });
 
-    // List command
-    program
-      .command("list")
-      .description("List all agents")
-      .option("--non-interactive", "Disable interactive mode (output plain text)")
-      .option("--no-interactive", "Disable interactive mode (output plain text)")
-      .option("--dir <path>", "Working directory for git detection")
-      .option("--search <query>", "Search agents by name or summary (non-interactive mode)")
+  // List command
+  program
+    .command("list")
+    .description("List all agents")
+    .option("--non-interactive", "Disable interactive mode (output plain text)")
+    .option("--no-interactive", "Disable interactive mode (output plain text)")
+    .option("--dir <path>", "Working directory for git detection")
+    .option(
+      "--search <query>",
+      "Search agents by name or summary (non-interactive mode)"
+    )
     .action(async (options) => {
       // Normalize non-interactive flag (Commander.js converts --non-interactive to nonInteractive)
       const normalizedOptions = {
         ...options,
-        "non-interactive": options.nonInteractive || options["non-interactive"] || false,
+        "non-interactive":
+          options.nonInteractive || options["non-interactive"] || false,
       };
       await executeList(context, normalizedOptions);
     });
@@ -70,7 +89,8 @@ export function registerCommands(program: Command, context: CommandContext): voi
       // Normalize non-interactive flag
       const normalizedOptions = {
         ...options,
-        "non-interactive": options.nonInteractive || options["non-interactive"] || false,
+        "non-interactive":
+          options.nonInteractive || options["non-interactive"] || false,
         agentId,
       };
       await executeStatus(context, normalizedOptions);
@@ -79,7 +99,9 @@ export function registerCommands(program: Command, context: CommandContext): voi
   // Watch command
   program
     .command("watch <agent-ids...>")
-    .description("Watch agent status(es) and block until they complete. Can watch multiple agents by providing space-separated IDs.")
+    .description(
+      "Watch agent status(es) and block until they complete. Can watch multiple agents by providing space-separated IDs."
+    )
     .option("--interval <ms>", "Polling interval in milliseconds", "2000")
     .option("--verbose, -v", "Show verbose output")
     .action(async (agentIds: string[], options) => {
@@ -101,7 +123,9 @@ export function registerCommands(program: Command, context: CommandContext): voi
   // Followup command
   program
     .command("followup <agent-id> <prompt>")
-    .description("Add a follow-up instruction to an agent. Prompt can be text, a file path prefixed with @, or '-' to read from stdin")
+    .description(
+      "Add a follow-up instruction to an agent. Prompt can be text, a file path prefixed with @, or '-' to read from stdin"
+    )
     .action(async (agentId: string, prompt: string) => {
       await executeFollowup(context, { agentId, prompt });
     });
@@ -115,7 +139,8 @@ export function registerCommands(program: Command, context: CommandContext): voi
     .action(async (agentId: string, options) => {
       const normalizedOptions = {
         ...options,
-        "non-interactive": options.nonInteractive || options["non-interactive"] || false,
+        "non-interactive":
+          options.nonInteractive || options["non-interactive"] || false,
         agentId,
       };
       await executeConversation(context, normalizedOptions);
@@ -149,8 +174,14 @@ export function registerCommands(program: Command, context: CommandContext): voi
   program
     .command("batch-delete")
     .description("Delete multiple agents by status or repository")
-    .option("--status <status>", "Filter by status (FINISHED, FAILED, CANCELLED, CREATING, RUNNING, or 'terminal' for all terminal statuses)")
-    .option("--repo <url>", "Filter by repository URL (auto-detected from git if not provided)")
+    .option(
+      "--status <status>",
+      "Filter by status (FINISHED, FAILED, CANCELLED, CREATING, RUNNING, or 'terminal' for all terminal statuses)"
+    )
+    .option(
+      "--repo <url>",
+      "Filter by repository URL (auto-detected from git if not provided)"
+    )
     .option("--dry-run", "Show what would be deleted without actually deleting")
     .option("--force", "Skip confirmation prompt")
     .option("--limit <number>", "Maximum number of agents to fetch", "100")
@@ -166,4 +197,3 @@ export function registerCommands(program: Command, context: CommandContext): voi
       });
     });
 }
-

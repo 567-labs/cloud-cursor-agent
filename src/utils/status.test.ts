@@ -150,4 +150,3 @@ describe("getRelativeTime", () => {
     expect(typeof result).toBe("string");
   });
 });
-

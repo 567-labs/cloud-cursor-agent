@@ -147,9 +147,9 @@ describe("normalizeRepositoryUrl", () => {
   });
 
   test("handles combined transformations", () => {
-    expect(
-      normalizeRepositoryUrl("HTTPS://GITHUB.COM/USER/REPO.GIT/")
-    ).toBe("github.com/user/repo");
+    expect(normalizeRepositoryUrl("HTTPS://GITHUB.COM/USER/REPO.GIT/")).toBe(
+      "github.com/user/repo"
+    );
   });
 
   test("trims whitespace", () => {
@@ -158,4 +158,3 @@ describe("normalizeRepositoryUrl", () => {
     );
   });
 });
-

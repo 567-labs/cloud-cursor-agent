@@ -6,7 +6,12 @@
 /**
  * Agent status types
  */
-export type AgentStatus = "CREATING" | "RUNNING" | "FINISHED" | "FAILED" | "CANCELLED";
+export type AgentStatus =
+  | "CREATING"
+  | "RUNNING"
+  | "FINISHED"
+  | "FAILED"
+  | "CANCELLED";
 
 /**
  * Source configuration for an agent
@@ -201,4 +206,3 @@ export interface AddFollowupResponse {
   /** ID of the agent */
   id: string;
 }
-

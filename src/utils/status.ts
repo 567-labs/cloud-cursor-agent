@@ -69,4 +69,3 @@ export function getRelativeTime(date: string | Date): string {
     return `${diffYears} year${diffYears === 1 ? "" : "s"} ago`;
   }
 }
-

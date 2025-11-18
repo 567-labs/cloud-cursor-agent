@@ -59,9 +59,7 @@ describe("fuzzyMatch", () => {
 
 describe("fuzzyMatchAny", () => {
   test("returns true if any target matches", () => {
-    expect(
-      fuzzyMatchAny("agt", ["Agent", "Other", "Another"])
-    ).toBe(true);
+    expect(fuzzyMatchAny("agt", ["Agent", "Other", "Another"])).toBe(true);
     expect(fuzzyMatchAny("oth", ["Agent", "Other", "Another"])).toBe(true);
   });
 
@@ -74,9 +72,7 @@ describe("fuzzyMatchAny", () => {
   });
 
   test("handles null/undefined targets in array", () => {
-    expect(fuzzyMatchAny("agt", [null, "Agent", undefined as any])).toBe(
-      true
-    );
+    expect(fuzzyMatchAny("agt", [null, "Agent", undefined as any])).toBe(true);
     expect(fuzzyMatchAny("agt", [null, undefined as any])).toBe(false);
   });
 
@@ -86,9 +82,7 @@ describe("fuzzyMatchAny", () => {
   });
 
   test("handles multiple matches", () => {
-    expect(
-      fuzzyMatchAny("ag", ["Agent", "Again", "Other"])
-    ).toBe(true);
+    expect(fuzzyMatchAny("ag", ["Agent", "Again", "Other"])).toBe(true);
   });
 
   test("handles single target", () => {
@@ -96,4 +90,3 @@ describe("fuzzyMatchAny", () => {
     expect(fuzzyMatchAny("xyz", ["Agent"])).toBe(false);
   });
 });
-

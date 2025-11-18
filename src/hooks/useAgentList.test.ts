@@ -241,4 +241,3 @@ describe("useAgentList", () => {
     expect(result.current.openPrUrl).toBe(true);
   });
 });
-

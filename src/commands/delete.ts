@@ -23,7 +23,9 @@ export async function executeDelete(
   if (!agentIdValidation.valid) {
     console.error(`Error: ${agentIdValidation.error}`);
     console.error("");
-    console.error("Agent ID must look like bc_123abc (letters and numbers only, at least 5 characters after bc_).");
+    console.error(
+      "Agent ID must look like bc_123abc (letters and numbers only, at least 5 characters after bc_)."
+    );
     process.exit(1);
   }
 
@@ -32,8 +34,12 @@ export async function executeDelete(
     if (!force) {
       const agent = await apiClient.getAgentStatus(agentId);
       if (agent.status === "RUNNING" || agent.status === "CREATING") {
-        console.error(`Error: Cannot delete agent that is ${agent.status.toLowerCase()}.`);
-        console.error("Use --force to delete anyway, or wait for the agent to complete.");
+        console.error(
+          `Error: Cannot delete agent that is ${agent.status.toLowerCase()}.`
+        );
+        console.error(
+          "Use --force to delete anyway, or wait for the agent to complete."
+        );
         process.exit(1);
         return;
       }
@@ -52,5 +58,3 @@ export async function executeDelete(
     process.exit(1);
   }
 }
-
-

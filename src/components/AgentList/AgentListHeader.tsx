@@ -1,9 +1,9 @@
 /**
  * Header component for agent list
- * 
+ *
  * Displays the title, agent count, active filters, grouping mode,
  * and loading spinner.
- * 
+ *
  * @module components/AgentList/AgentListHeader
  */
 
@@ -31,7 +31,7 @@ export interface AgentListHeaderProps {
 
 /**
  * Header component for the agent list.
- * 
+ *
  * Displays:
  * - Title with agent count
  * - Active status filter indicator
@@ -39,10 +39,10 @@ export interface AgentListHeaderProps {
  * - Grouping mode indicator
  * - Loading spinner (when refreshing)
  * - Separator line
- * 
+ *
  * @param props - Component props
  * @returns Header UI
- * 
+ *
  * @example
  * ```tsx
  * <AgentListHeader
@@ -69,17 +69,17 @@ export function AgentListHeader({
           Your Cloud Agents
           {agentCount > 0 && (
             <Text color="gray">
-              {" "}({agentCount} {agentCount === 1 ? "agent" : "agents"})
+              {" "}
+              ({agentCount} {agentCount === 1 ? "agent" : "agents"})
             </Text>
           )}
           {statusFilter && (
             <Text color="cyan">
-              {" "}• Filter: {getStatusDisplay(statusFilter).label}
+              {" "}
+              • Filter: {getStatusDisplay(statusFilter).label}
             </Text>
           )}
-          {repositoryFilter && (
-            <Text color="gray"> • {repositoryFilter}</Text>
-          )}
+          {repositoryFilter && <Text color="gray"> • {repositoryFilter}</Text>}
           {groupByRepository && (
             <Text color="cyan"> • Grouped by repository</Text>
           )}
@@ -96,4 +96,3 @@ export function AgentListHeader({
     </>
   );
 }
-

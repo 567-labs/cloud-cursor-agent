@@ -13,16 +13,26 @@ interface MainMenuProps {
   onExit: () => void;
 }
 
-export function MainMenu({ onSelectListAgentsAll, onSelectListAgentsRepo, onExit }: MainMenuProps) {
+export function MainMenu({
+  onSelectListAgentsAll,
+  onSelectListAgentsRepo,
+  onExit,
+}: MainMenuProps) {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const { exit } = useApp();
-  
+
   const terminalWidth = process.stdout.columns || 80;
 
   const options = [
     { label: "List Agents (This Repo)", action: onSelectListAgentsRepo },
     { label: "List Agents (All)", action: onSelectListAgentsAll },
-    { label: "Exit", action: () => { exit(); onExit(); } },
+    {
+      label: "Exit",
+      action: () => {
+        exit();
+        onExit();
+      },
+    },
   ];
 
   useInput((input, key) => {
@@ -63,7 +73,7 @@ export function MainMenu({ onSelectListAgentsAll, onSelectListAgentsRepo, onExit
                 </>
               ) : (
                 <>
-                  <Text color="gray">  </Text>
+                  <Text color="gray"> </Text>
                   <Text color="gray">{option.label}</Text>
                 </>
               )}
@@ -77,4 +87,3 @@ export function MainMenu({ onSelectListAgentsAll, onSelectListAgentsRepo, onExit
     </Box>
   );
 }
-

@@ -1,6 +1,6 @@
 /**
  * Test utilities
- * 
+ *
  * Common utilities and helpers for writing tests.
  */
 
@@ -10,10 +10,7 @@
 /**
  * Custom render function that includes any providers or context needed for tests
  */
-export async function renderWithProviders(
-  ui: any,
-  options?: any
-) {
+export async function renderWithProviders(ui: any, options?: any) {
   const { render } = await import("@testing-library/react");
   return render(ui, options);
 }
@@ -42,7 +39,9 @@ export function mockUseInput() {
 /**
  * Create a mock agent for testing
  */
-export function createMockAgent(overrides?: Partial<import("../api/schemas.js").Agent>): import("../api/schemas.js").Agent {
+export function createMockAgent(
+  overrides?: Partial<import("../api/schemas.js").Agent>
+): import("../api/schemas.js").Agent {
   return {
     id: "bc_test123",
     name: "Test Agent",
@@ -65,12 +64,17 @@ export function createMockAgent(overrides?: Partial<import("../api/schemas.js").
 /**
  * Create multiple mock agents for testing
  */
-export function createMockAgents(count: number, overrides?: Partial<import("../api/schemas.js").Agent>[]): import("../api/schemas.js").Agent[] {
+export function createMockAgents(
+  count: number,
+  overrides?: Partial<import("../api/schemas.js").Agent>[]
+): import("../api/schemas.js").Agent[] {
   return Array.from({ length: count }, (_, i) =>
     createMockAgent({
       id: `bc_test${i}`,
       name: `Test Agent ${i}`,
-      status: (["RUNNING", "FINISHED", "FAILED", "CREATING", "CANCELLED"] as const)[i % 5],
+      status: (
+        ["RUNNING", "FINISHED", "FAILED", "CREATING", "CANCELLED"] as const
+      )[i % 5],
       ...overrides?.[i],
     })
   );
@@ -93,4 +97,3 @@ export function createMockApiClient() {
     addFollowup: async () => ({}),
   } as unknown as import("../api/client.js").CloudAgentsApiClient;
 }
-

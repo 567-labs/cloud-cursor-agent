@@ -1,5 +1,8 @@
 import { test, expect, describe } from "bun:test";
-import { filterAgentsByStatus, flattenGroupedAgents } from "./agentFiltering.js";
+import {
+  filterAgentsByStatus,
+  flattenGroupedAgents,
+} from "./agentFiltering.js";
 import { createMockAgent } from "../test/utils.jsx";
 
 describe("filterAgentsByStatus", () => {
@@ -98,11 +101,10 @@ describe("flattenGroupedAgents", () => {
       ["FINISHED", [agent2]],
     ]);
 
-    const flattened = flattenGroupedAgents(
-      groupedAgents,
-      false,
-      ["RUNNING", "FINISHED"]
-    );
+    const flattened = flattenGroupedAgents(groupedAgents, false, [
+      "RUNNING",
+      "FINISHED",
+    ]);
 
     expect(flattened).toHaveLength(3);
     expect(flattened[0].status).toBe("RUNNING");
@@ -117,9 +119,7 @@ describe("flattenGroupedAgents", () => {
       createMockAgent({ id: "3", status: "CREATING" }),
     ];
 
-    const groupedAgents = new Map([
-      ["github.com/user/repo", agents],
-    ]);
+    const groupedAgents = new Map([["github.com/user/repo", agents]]);
 
     const flattened = flattenGroupedAgents(groupedAgents, true, []);
 
@@ -135,11 +135,10 @@ describe("flattenGroupedAgents", () => {
       ["FINISHED", []],
     ]);
 
-    const flattened = flattenGroupedAgents(
-      groupedAgents,
-      false,
-      ["RUNNING", "FINISHED"]
-    );
+    const flattened = flattenGroupedAgents(groupedAgents, false, [
+      "RUNNING",
+      "FINISHED",
+    ]);
 
     expect(flattened).toEqual([]);
   });
@@ -150,4 +149,3 @@ describe("flattenGroupedAgents", () => {
     expect(flattened).toEqual([]);
   });
 });
-

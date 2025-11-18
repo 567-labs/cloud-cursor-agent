@@ -131,4 +131,3 @@ describe("AgentListFooter", () => {
     expect(screen.getByText(/→ Next/)).toBeDefined();
   });
 });
-

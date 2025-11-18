@@ -1,10 +1,10 @@
 /**
  * Agent grouping utilities
- * 
+ *
  * Provides functions for grouping and organizing agents by various criteria
  * (status, repository, etc.). These utilities maintain consistent ordering
  * and can be reused across components that need to display agents in groups.
- * 
+ *
  * @module utils/grouping
  */
 
@@ -13,14 +13,14 @@ import { normalizeRepositoryUrl } from "./formatting.js";
 
 /**
  * Default order for agent statuses when displaying grouped lists.
- * 
+ *
  * Statuses are ordered by priority/importance:
  * 1. RUNNING - Active work in progress
  * 2. CREATING - Being set up
  * 3. FINISHED - Completed successfully
  * 4. FAILED - Completed with errors
  * 5. CANCELLED - Manually stopped
- * 
+ *
  * This order is used to ensure consistent display across the application.
  */
 export const DEFAULT_STATUS_ORDER: ReadonlyArray<string> = [
@@ -33,14 +33,14 @@ export const DEFAULT_STATUS_ORDER: ReadonlyArray<string> = [
 
 /**
  * Groups agents by their status.
- * 
+ *
  * Creates a Map where keys are status strings and values are arrays of agents
  * with that status. The Map is initialized with all known statuses from
  * DEFAULT_STATUS_ORDER to preserve ordering, even if no agents have that status.
- * 
+ *
  * @param agents - Array of agents to group
  * @returns Map of status -> agents array
- * 
+ *
  * @example
  * ```ts
  * const agents = [
@@ -59,34 +59,34 @@ export const DEFAULT_STATUS_ORDER: ReadonlyArray<string> = [
  */
 export function groupAgentsByStatus(agents: Agent[]): Map<string, Agent[]> {
   const groups = new Map<string, Agent[]>();
-  
+
   // Initialize groups for known statuses so they preserve order later
-  DEFAULT_STATUS_ORDER.forEach(status => {
+  DEFAULT_STATUS_ORDER.forEach((status) => {
     groups.set(status, []);
   });
-  
+
   // Group agents
-  agents.forEach(agent => {
+  agents.forEach((agent) => {
     const status = agent.status;
     if (!groups.has(status)) {
       groups.set(status, []);
     }
     groups.get(status)!.push(agent);
   });
-  
+
   return groups;
 }
 
 /**
  * Gets the display order for statuses based on which groups have agents.
- * 
+ *
  * Returns an array of status strings in the order they should be displayed.
  * Known statuses (from DEFAULT_STATUS_ORDER) are listed first, followed by
  * any unknown statuses sorted alphabetically.
- * 
+ *
  * @param groups - Map of status -> agents array (typically from groupAgentsByStatus)
  * @returns Array of status strings in display order
- * 
+ *
  * @example
  * ```ts
  * const groups = new Map([
@@ -114,16 +114,16 @@ export function getStatusDisplayOrder(groups: Map<string, Agent[]>): string[] {
 
 /**
  * Groups agents by their repository URL.
- * 
+ *
  * Creates a Map where keys are normalized repository URLs and values are arrays
  * of agents from that repository. Repositories are sorted alphabetically.
- * 
+ *
  * Uses normalizeRepositoryUrl to ensure consistent grouping even if URLs
  * are formatted differently (e.g., with/without protocol, trailing slashes).
- * 
+ *
  * @param agents - Array of agents to group
  * @returns Map of normalized repository URL -> agents array (sorted by repo name)
- * 
+ *
  * @example
  * ```ts
  * const agents = [
@@ -140,23 +140,22 @@ export function getStatusDisplayOrder(groups: Map<string, Agent[]>): string[] {
  */
 export function groupAgentsByRepository(agents: Agent[]): Map<string, Agent[]> {
   const groups = new Map<string, Agent[]>();
-  
+
   // Group agents by repository
-  agents.forEach(agent => {
+  agents.forEach((agent) => {
     const repo = normalizeRepositoryUrl(agent.source.repository);
     if (!groups.has(repo)) {
       groups.set(repo, []);
     }
     groups.get(repo)!.push(agent);
   });
-  
+
   // Sort repositories alphabetically
   const sortedRepos = Array.from(groups.keys()).sort();
   const sortedGroups = new Map<string, Agent[]>();
-  sortedRepos.forEach(repo => {
+  sortedRepos.forEach((repo) => {
     sortedGroups.set(repo, groups.get(repo)!);
   });
-  
+
   return sortedGroups;
 }
-

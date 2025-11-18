@@ -216,4 +216,3 @@ describe("getStatusDisplayOrder", () => {
     expect(order[1]).toBe("UNKNOWN2");
   });
 });
-

@@ -133,6 +133,7 @@ bun run cloud-agent.tsx watch <agent-id> --interval 5000
 ```
 
 **Exit codes:**
+
 - `0` for FINISHED
 - `1` for FAILED/CANCELLED
 
@@ -229,6 +230,7 @@ bun run cloud-agent.tsx batch-delete --status FINISHED --limit 50 --force
 ```
 
 **Options:**
+
 - `--status <status>` - Filter by status: `FINISHED`, `FAILED`, `CANCELLED`, `CREATING`, `RUNNING`, or `terminal` (all terminal statuses)
 - `--repo <url>` - Filter by repository URL (auto-detected from git if not provided)
 - `--dry-run` - Preview what would be deleted without actually deleting
@@ -290,11 +292,13 @@ When AI agents (automated assistants, CI/CD systems, or other programmatic tools
 5. **No Blocking**: Interactive mode blocks waiting for user input. Non-interactive mode completes immediately and returns control.
 
 **Required for AI Agents:**
+
 - `bun run cloud-agent.tsx list --non-interactive` - Always use this flag
 - `bun run cloud-agent.tsx status <id> --non-interactive` - Always use this flag
 - `bun run cloud-agent.tsx launch --plan <file>` - Already non-interactive by design, PR creation is default
 
 **What happens without `--non-interactive`:**
+
 - `list` and `status` commands will launch interactive UI and hang waiting for keyboard input
 - AI agents cannot proceed past these commands
 

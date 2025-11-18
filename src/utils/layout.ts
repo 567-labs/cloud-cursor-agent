@@ -1,10 +1,10 @@
 /**
  * Layout calculation utilities
- * 
+ *
  * Provides functions for calculating responsive layouts based on terminal width.
  * These utilities help components adapt to different terminal sizes and provide
  * consistent layout breakpoints across the application.
- * 
+ *
  * @module utils/layout
  */
 
@@ -12,7 +12,7 @@ import { clampWidth } from "./formatting.js";
 
 /**
  * Layout breakpoint types based on terminal width.
- * 
+ *
  * - "wide": >= 100 columns - Full layout with side-by-side columns
  * - "medium": 70-99 columns - Medium layout with adjusted column widths
  * - "compact": < 70 columns - Stacked layout for narrow terminals
@@ -21,10 +21,10 @@ export type LayoutBreakpoint = "wide" | "medium" | "compact";
 
 /**
  * Determines the layout breakpoint based on terminal width.
- * 
+ *
  * @param width - Terminal width in columns
  * @returns The appropriate layout breakpoint
- * 
+ *
  * @example
  * ```ts
  * getLayoutBreakpoint(120)  // "wide"
@@ -40,10 +40,10 @@ export function getLayoutBreakpoint(width: number): LayoutBreakpoint {
 
 /**
  * Gets a human-readable label for a layout breakpoint.
- * 
+ *
  * @param breakpoint - The layout breakpoint
  * @returns A descriptive label string
- * 
+ *
  * @example
  * ```ts
  * getLayoutLabel("wide")    // "Wide layout"
@@ -76,21 +76,21 @@ export interface ColumnLayout {
 
 /**
  * Calculates column layout based on available width and breakpoint.
- * 
+ *
  * Column widths are distributed as follows:
  * - Wide (>= 100): 45% name, 35% repo, remainder spacing
  * - Medium (70-99): 60% name, 40% repo
  * - Compact (< 70): Stacked layout (both columns use full width)
- * 
+ *
  * @param availableWidth - Available content width in columns
  * @param breakpoint - Layout breakpoint
  * @returns Column layout configuration
- * 
+ *
  * @example
  * ```ts
  * calculateColumnLayout(120, "wide")
  * // { nameWidth: 54, repoWidth: 42, stacked: false }
- * 
+ *
  * calculateColumnLayout(50, "compact")
  * // { nameWidth: 50, repoWidth: 50, stacked: true }
  * ```
@@ -110,8 +110,8 @@ export function calculateColumnLayout(
   } else if (breakpoint === "medium") {
     // 70-100: 60% name, 40% repo
     return {
-      nameWidth: Math.floor(width * 0.60),
-      repoWidth: Math.floor(width * 0.40),
+      nameWidth: Math.floor(width * 0.6),
+      repoWidth: Math.floor(width * 0.4),
       stacked: false,
     };
   } else {
@@ -148,17 +148,17 @@ export interface LayoutMetrics {
 
 /**
  * Calculates layout metrics based on terminal dimensions.
- * 
+ *
  * Takes into account header height (4 lines), footer height (5 lines),
  * and padding to determine how much space is available for content.
- * 
+ *
  * @param terminalWidth - Terminal width in columns
  * @param terminalHeight - Terminal height in rows
  * @param chromePadding - Padding for borders and margins (default: 4)
  * @param headerHeight - Header height in lines (default: 4)
  * @param footerHeight - Footer height in lines (default: 5)
  * @returns Complete layout metrics
- * 
+ *
  * @example
  * ```ts
  * const metrics = calculateLayoutMetrics(100, 30);
@@ -202,4 +202,3 @@ export function calculateLayoutMetrics(
     mainBoxPadding,
   };
 }
-

@@ -101,4 +101,3 @@ describe("useTerminalDimensions", () => {
     process.stdout.rows = originalRows;
   });
 });
-

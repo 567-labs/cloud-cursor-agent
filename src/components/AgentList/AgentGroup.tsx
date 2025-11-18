@@ -1,9 +1,9 @@
 /**
  * Agent group component
- * 
+ *
  * Renders a group of agents with a header and footer. Supports both
  * status-based and repository-based grouping.
- * 
+ *
  * @module components/AgentList/AgentGroup
  */
 
@@ -42,19 +42,19 @@ export interface AgentGroupProps {
 
 /**
  * Component for rendering a group of agents.
- * 
+ *
  * Displays:
  * - Group header with title and count
  * - List of agents in the group
  * - Group footer separator
- * 
+ *
  * Supports two grouping modes:
  * - Status grouping: Shows status symbol and label
  * - Repository grouping: Shows repository URL
- * 
+ *
  * @param props - Component props
  * @returns Group UI
- * 
+ *
  * @example
  * ```tsx
  * <AgentGroup
@@ -141,9 +141,10 @@ export function AgentGroup({
 
       {/* Section footer */}
       <Box marginTop={0}>
-        <Text color="gray">└{getSeparator(Math.max(3, separatorWidth - 2))}┘</Text>
+        <Text color="gray">
+          └{getSeparator(Math.max(3, separatorWidth - 2))}┘
+        </Text>
       </Box>
     </Box>
   );
 }
-

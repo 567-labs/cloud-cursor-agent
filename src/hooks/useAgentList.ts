@@ -1,10 +1,10 @@
 /**
  * Agent list data management hook
- * 
+ *
  * Manages state, data fetching, pagination, and polling for agent lists.
  * This hook handles all the complex logic for loading agents, tracking
  * status transitions, and maintaining pagination state.
- * 
+ *
  * @module hooks/useAgentList
  */
 
@@ -69,7 +69,7 @@ const FETCH_MULTIPLIER = 2;
 
 /**
  * Hook for managing agent list state, fetching, and polling.
- * 
+ *
  * Handles:
  * - Loading agents with pagination
  * - Filtering by repository
@@ -77,10 +77,10 @@ const FETCH_MULTIPLIER = 2;
  * - Grouping mode (status vs repository)
  * - Polling active agents for status updates
  * - Tracking status transitions
- * 
+ *
  * @param options - Configuration options
  * @returns Agent list state and control functions
- * 
+ *
  * @example
  * ```tsx
  * function AgentListComponent({ apiClient }) {
@@ -95,7 +95,7 @@ const FETCH_MULTIPLIER = 2;
  *     apiClient,
  *     agentsPerView: 10
  *   });
- *   
+ *
  *   // Use the state and functions...
  * }
  * ```
@@ -110,12 +110,18 @@ export function useAgentList({
   const [error, setError] = useState<string | null>(null);
   const [nextCursor, setNextCursor] = useState<string | undefined>(undefined);
   const [prevCursors, setPrevCursors] = useState<string[]>([]);
-  const [currentPageCursor, setCurrentPageCursor] = useState<string | undefined>(undefined);
+  const [currentPageCursor, setCurrentPageCursor] = useState<
+    string | undefined
+  >(undefined);
   const [statusFilter, setStatusFilter] = useState<AgentStatus | null>(null);
   const [groupByRepository, setGroupByRepository] = useState(false);
-  const [statusTransitionAgents, setStatusTransitionAgents] = useState<Set<string>>(new Set());
+  const [statusTransitionAgents, setStatusTransitionAgents] = useState<
+    Set<string>
+  >(new Set());
   const [openPrUrl, setOpenPrUrl] = useState(true);
-  const [inFlightCursor, setInFlightCursor] = useState<string | undefined>(undefined);
+  const [inFlightCursor, setInFlightCursor] = useState<string | undefined>(
+    undefined
+  );
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const loadAgents = useCallback(
@@ -168,7 +174,9 @@ export function useAgentList({
 
         // Track status transitions
         setAgents((prevAgents) => {
-          const prevStatusMap = new Map(prevAgents.map((a) => [a.id, a.status]));
+          const prevStatusMap = new Map(
+            prevAgents.map((a) => [a.id, a.status])
+          );
 
           // Find agents whose status changed
           const transitionSet = new Set<string>();
@@ -328,4 +336,3 @@ export function useAgentList({
     setCurrentPageCursor,
   };
 }
-

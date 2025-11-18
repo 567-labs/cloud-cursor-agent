@@ -89,7 +89,9 @@ export async function executeList(
       const fetchLimit = 100;
       const maxSearchResults = 1000;
       const searchMode = searchQuery.length > 0;
-      const normalizedFilter = repositoryFilter ? normalizeRepo(repositoryFilter) : null;
+      const normalizedFilter = repositoryFilter
+        ? normalizeRepo(repositoryFilter)
+        : null;
       let agents: Agent[] = [];
       let cursor: string | undefined;
       let nextCursorToken: string | undefined;
@@ -101,12 +103,13 @@ export async function executeList(
         let pageAgents = response.agents;
         if (normalizedFilter) {
           pageAgents = pageAgents.filter(
-            (agent) => normalizeRepo(agent.source.repository) === normalizedFilter,
+            (agent) =>
+              normalizeRepo(agent.source.repository) === normalizedFilter
           );
         }
         if (searchMode) {
           pageAgents = pageAgents.filter((agent) =>
-            fuzzyMatchAny(searchQuery, [agent.name, agent.summary ?? ""]),
+            fuzzyMatchAny(searchQuery, [agent.name, agent.summary ?? ""])
           );
         }
 
@@ -125,7 +128,9 @@ export async function executeList(
 
       if (agents.length === 0) {
         if (repositoryFilter && searchMode) {
-          console.log(`No agents for ${repositoryFilter} match "${searchQuery}".`);
+          console.log(
+            `No agents for ${repositoryFilter} match "${searchQuery}".`
+          );
         } else if (repositoryFilter) {
           console.log(`No agents found for ${repositoryFilter}.`);
         } else if (searchMode) {
@@ -141,12 +146,16 @@ export async function executeList(
 
       if (repositoryFilter && searchMode) {
         console.log(
-          `Found ${agents.length} agent(s) for ${repositoryFilter} matching "${searchQuery}":\n`,
+          `Found ${agents.length} agent(s) for ${repositoryFilter} matching "${searchQuery}":\n`
         );
       } else if (repositoryFilter) {
-        console.log(`Found ${agents.length} agent(s) for ${repositoryFilter}:\n`);
+        console.log(
+          `Found ${agents.length} agent(s) for ${repositoryFilter}:\n`
+        );
       } else if (searchMode) {
-        console.log(`Found ${agents.length} agent(s) matching "${searchQuery}":\n`);
+        console.log(
+          `Found ${agents.length} agent(s) matching "${searchQuery}":\n`
+        );
       } else {
         console.log(`Found ${agents.length} agent(s):\n`);
       }
@@ -170,7 +179,9 @@ export async function executeList(
         console.log("");
       }
       if (nextCursorToken && !repositoryFilter) {
-        console.log("(More agents available - use interactive mode to paginate)");
+        console.log(
+          "(More agents available - use interactive mode to paginate)"
+        );
       }
     } catch (error) {
       if (error instanceof Error) {
@@ -194,4 +205,3 @@ export async function executeList(
   );
   await waitUntilExit();
 }
-

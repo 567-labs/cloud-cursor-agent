@@ -22,16 +22,24 @@ export async function executeCancel(
   if (!agentIdValidation.valid) {
     console.error(`Error: ${agentIdValidation.error}`);
     console.error("");
-    console.error("Agent ID must look like bc_123abc (letters and numbers only, at least 5 characters after bc_).");
+    console.error(
+      "Agent ID must look like bc_123abc (letters and numbers only, at least 5 characters after bc_)."
+    );
     process.exit(1);
   }
 
   try {
     // Check current status first
     const agent = await apiClient.getAgentStatus(agentId);
-    
-    if (agent.status === "FINISHED" || agent.status === "FAILED" || agent.status === "CANCELLED") {
-      console.error(`Error: Agent is already ${agent.status.toLowerCase()}. Cannot cancel.`);
+
+    if (
+      agent.status === "FINISHED" ||
+      agent.status === "FAILED" ||
+      agent.status === "CANCELLED"
+    ) {
+      console.error(
+        `Error: Agent is already ${agent.status.toLowerCase()}. Cannot cancel.`
+      );
       process.exit(1);
       return;
     }
@@ -52,5 +60,3 @@ export async function executeCancel(
     process.exit(1);
   }
 }
-
-

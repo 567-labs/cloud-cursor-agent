@@ -1,0 +1,10 @@
+node_modules
+dist
+*.js.map
+*.d.ts
+bun.lock
+package-lock.json
+cli.js
+cli.js.map
+cloud-agent.js.map
+

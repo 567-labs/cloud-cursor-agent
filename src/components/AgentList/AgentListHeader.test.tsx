@@ -42,14 +42,22 @@ describe("AgentListHeader", () => {
 
   test("status filter: shows filter indicator when statusFilter is set", () => {
     render(
-      <AgentListHeader {...defaultProps} agentCount={5} statusFilter="RUNNING" />
+      <AgentListHeader
+        {...defaultProps}
+        agentCount={5}
+        statusFilter="RUNNING"
+      />
     );
     expect(screen.getByText(/Filter: Running/)).toBeDefined();
   });
 
   test("status filter: shows correct status label", () => {
     render(
-      <AgentListHeader {...defaultProps} agentCount={5} statusFilter="FINISHED" />
+      <AgentListHeader
+        {...defaultProps}
+        agentCount={5}
+        statusFilter="FINISHED"
+      />
     );
     expect(screen.getByText(/Filter: Finished/)).toBeDefined();
   });
@@ -67,7 +75,11 @@ describe("AgentListHeader", () => {
 
   test("grouping mode: shows 'Grouped by repository' when groupByRepository is true", () => {
     render(
-      <AgentListHeader {...defaultProps} agentCount={5} groupByRepository={true} />
+      <AgentListHeader
+        {...defaultProps}
+        agentCount={5}
+        groupByRepository={true}
+      />
     );
     expect(screen.getByText(/Grouped by repository/)).toBeDefined();
   });
@@ -79,7 +91,9 @@ describe("AgentListHeader", () => {
   });
 
   test("loading spinner: does not show when not loading", () => {
-    render(<AgentListHeader {...defaultProps} agentCount={5} loading={false} />);
+    render(
+      <AgentListHeader {...defaultProps} agentCount={5} loading={false} />
+    );
     expect(screen.queryByTestId("spinner")).toBeNull();
   });
 
@@ -114,4 +128,3 @@ describe("AgentListHeader", () => {
     expect(screen.getByTestId("spinner")).toBeDefined();
   });
 });
-

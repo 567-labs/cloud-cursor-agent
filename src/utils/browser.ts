@@ -32,4 +32,3 @@ export async function openInBrowser(url: string): Promise<void> {
     throw new Error(`Failed to open browser: ${errorMessage}`);
   }
 }
-

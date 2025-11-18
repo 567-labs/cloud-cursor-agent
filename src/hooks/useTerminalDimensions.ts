@@ -1,9 +1,9 @@
 /**
  * Terminal dimensions hook
- * 
+ *
  * Provides real-time terminal width and height tracking with resize handling.
  * This hook listens to terminal resize events and updates dimensions accordingly.
- * 
+ *
  * @module hooks/useTerminalDimensions
  */
 
@@ -12,17 +12,17 @@ import { useStdout } from "ink";
 
 /**
  * Returns the current terminal dimensions and updates them on resize.
- * 
+ *
  * Uses Ink's useStdout hook to listen for resize events. Falls back to
  * process.stdout if useStdout is not available.
- * 
+ *
  * @returns Object containing terminalWidth and terminalHeight
- * 
+ *
  * @example
  * ```tsx
  * function MyComponent() {
  *   const { terminalWidth, terminalHeight } = useTerminalDimensions();
- *   
+ *
  *   return (
  *     <Box width={terminalWidth}>
  *       <Text>Width: {terminalWidth}, Height: {terminalHeight}</Text>
@@ -71,4 +71,3 @@ export function useTerminalDimensions(): {
 
   return { terminalWidth, terminalHeight };
 }
-

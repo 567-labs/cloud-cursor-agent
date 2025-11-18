@@ -1,6 +1,6 @@
 /**
  * Test setup file
- * 
+ *
  * This file is automatically run before all tests.
  * It sets up mocks and test utilities for the test environment.
  */
@@ -15,4 +15,3 @@ import { afterEach } from "bun:test";
 afterEach(() => {
   // Reset any global state if needed
 });
-

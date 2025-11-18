@@ -22,7 +22,7 @@ export class ApiError extends Error {
   constructor(
     message: string,
     public statusCode?: number,
-    public response?: unknown,
+    public response?: unknown
   ) {
     super(message);
     this.name = "ApiError";
@@ -47,7 +47,7 @@ export class CloudAgentsApiClient {
   constructor(apiKey: string, baseUrl: string = "https://api.cursor.com") {
     if (!apiKey || typeof apiKey !== "string" || apiKey.trim().length === 0) {
       throw new Error(
-        "API key is required. Please set CURSOR_API_KEY environment variable.",
+        "API key is required. Please set CURSOR_API_KEY environment variable."
       );
     }
     this.apiKey = apiKey.trim();
@@ -83,7 +83,7 @@ export class CloudAgentsApiClient {
   private async request<T>(
     method: string,
     path: string,
-    body?: unknown,
+    body?: unknown
   ): Promise<T> {
     const url = `${this.baseUrl}${path}`;
     const requestLabel = `${method.toUpperCase()} ${path}`;
@@ -117,11 +117,11 @@ export class CloudAgentsApiClient {
           const retryAfter = response.headers.get("Retry-After");
           errorMessage = `Rate limit exceeded during ${requestLabel}.`;
           guidance.push(
-            "Wait a few seconds and try again, or reduce how often you call this command.",
+            "Wait a few seconds and try again, or reduce how often you call this command."
           );
           if (retryAfter) {
             guidance.push(
-              `Retry after ${retryAfter} seconds as suggested by the API.`,
+              `Retry after ${retryAfter} seconds as suggested by the API.`
             );
           }
         }
@@ -129,21 +129,21 @@ export class CloudAgentsApiClient {
         else if (response.status === 401) {
           errorMessage = `Authentication failed while calling ${requestLabel}.`;
           guidance.push(
-            "Check CURSOR_API_KEY (run: echo $CURSOR_API_KEY) and ensure it matches https://cursor.com/settings.",
+            "Check CURSOR_API_KEY (run: echo $CURSOR_API_KEY) and ensure it matches https://cursor.com/settings."
           );
         }
         // Handle not found (404)
         else if (response.status === 404) {
           errorMessage = `Resource not found for ${requestLabel}.`;
           guidance.push(
-            "Verify the agent id or resource identifier you passed to the command.",
+            "Verify the agent id or resource identifier you passed to the command."
           );
         }
         // Handle bad request (400)
         else if (response.status === 400) {
           errorMessage = `Bad request sent to ${requestLabel}.`;
           guidance.push(
-            "Double-check your command flags and plan content, then retry with --verbose.",
+            "Double-check your command flags and plan content, then retry with --verbose."
           );
         }
         // Handle server errors (5xx)
@@ -202,26 +202,26 @@ export class CloudAgentsApiClient {
           throw new ApiError(
             `Failed to connect to ${this.baseUrl}. Check your internet connection or proxy settings, then retry.`,
             undefined,
-            error,
+            error
           );
         }
         if (error.message.includes("ENOTFOUND")) {
           throw new ApiError(
             `Failed to resolve ${this.baseUrl}. Confirm DNS works and that you can reach https://api.cursor.com.`,
             undefined,
-            error,
+            error
           );
         }
         throw new ApiError(
           `Network error during ${requestLabel}: ${error.message}. Try rerunning with --verbose for more detail.`,
           undefined,
-          error,
+          error
         );
       }
       throw new ApiError(
         `Unknown error occurred while calling ${requestLabel}. Retry shortly or contact support if it keeps happening.`,
         undefined,
-        error,
+        error
       );
     }
   }
@@ -238,7 +238,7 @@ export class CloudAgentsApiClient {
    */
   async listAgents(
     limit?: number,
-    cursor?: string,
+    cursor?: string
   ): Promise<ListAgentsResponse> {
     const params = new URLSearchParams();
     if (limit !== undefined) {
@@ -295,7 +295,7 @@ export class CloudAgentsApiClient {
   async getAgentConversation(id: string): Promise<AgentConversation> {
     return this.request<AgentConversation>(
       "GET",
-      `/v0/agents/${id}/conversation`,
+      `/v0/agents/${id}/conversation`
     );
   }
 
@@ -318,12 +318,12 @@ export class CloudAgentsApiClient {
         data: string;
         dimension: { width: number; height: number };
       }>;
-    },
+    }
   ): Promise<AddFollowupResponse> {
     return this.request<AddFollowupResponse>(
       "POST",
       `/v0/agents/${id}/followup`,
-      { prompt },
+      { prompt }
     );
   }
 

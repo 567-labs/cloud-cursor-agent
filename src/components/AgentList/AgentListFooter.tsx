@@ -1,8 +1,8 @@
 /**
  * Footer component for agent list
- * 
+ *
  * Displays pagination information, layout info, and keyboard hints.
- * 
+ *
  * @module components/AgentList/AgentListFooter
  */
 
@@ -30,15 +30,15 @@ export interface AgentListFooterProps {
 
 /**
  * Footer component for the agent list.
- * 
+ *
  * Displays:
  * - Pagination range (e.g., "Showing 1-10 of 25 agents")
  * - Layout information (e.g., "Wide layout")
  * - Keyboard shortcuts hints
- * 
+ *
  * @param props - Component props
  * @returns Footer UI
- * 
+ *
  * @example
  * ```tsx
  * <AgentListFooter
@@ -68,7 +68,7 @@ export function AgentListFooter({
   if (hasNextPage) {
     paginationHintParts.push("→ Next");
   }
-  
+
   const footerHintParts = [
     ...paginationHintParts,
     "↑↓/jk Navigate",
@@ -101,4 +101,3 @@ export function AgentListFooter({
     </Box>
   );
 }
-

@@ -37,8 +37,7 @@ export function fuzzyMatch(query: string, target?: string | null): boolean {
  */
 export function fuzzyMatchAny(
   query: string,
-  targets: Array<string | null | undefined>,
+  targets: Array<string | null | undefined>
 ): boolean {
   return targets.some((target) => fuzzyMatch(query, target));
 }
-

@@ -24,7 +24,9 @@ export async function executeOpen(
   if (!agentIdValidation.valid) {
     console.error(`Error: ${agentIdValidation.error}`);
     console.error("");
-    console.error("Agent ID must look like bc_123abc (letters and numbers only, at least 5 characters after bc_).");
+    console.error(
+      "Agent ID must look like bc_123abc (letters and numbers only, at least 5 characters after bc_)."
+    );
     process.exit(1);
   }
 
@@ -55,5 +57,3 @@ export async function executeOpen(
     process.exit(1);
   }
 }
-
-

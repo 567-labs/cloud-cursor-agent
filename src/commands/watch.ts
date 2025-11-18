@@ -45,7 +45,9 @@ async function watchSingleAgent(
   if (TERMINAL_STATUSES.includes(agent.status)) {
     if (verbose) {
       const statusDisplay = getStatusDisplay(agent.status);
-      console.error(`Agent ${agentId} is already ${statusDisplay.label.toLowerCase()}.`);
+      console.error(
+        `Agent ${agentId} is already ${statusDisplay.label.toLowerCase()}.`
+      );
     }
     return agent;
   }
@@ -56,7 +58,9 @@ async function watchSingleAgent(
     // Show status change if verbose
     if (verbose && agent.status !== lastStatus) {
       const statusDisplay = getStatusDisplay(agent.status);
-      console.error(`[${agentId}] Status changed: ${statusDisplay.symbol} ${statusDisplay.label}`);
+      console.error(
+        `[${agentId}] Status changed: ${statusDisplay.symbol} ${statusDisplay.label}`
+      );
       lastStatus = agent.status;
     }
 
@@ -75,7 +79,11 @@ export async function executeWatch(
   options: WatchOptions
 ): Promise<void> {
   const { apiClient } = context;
-  const { agentIds, interval = DEFAULT_POLL_INTERVAL, verbose = false } = options;
+  const {
+    agentIds,
+    interval = DEFAULT_POLL_INTERVAL,
+    verbose = false,
+  } = options;
 
   // Validate all agent IDs
   const invalidIds: string[] = [];
@@ -89,7 +97,9 @@ export async function executeWatch(
   if (invalidIds.length > 0) {
     console.error(`Error: Invalid agent ID(s): ${invalidIds.join(", ")}`);
     console.error("");
-    console.error("Agent IDs must look like bc_123abc or bc-uuid-format (letters, numbers, and hyphens only, at least 5 characters after bc- or bc_).");
+    console.error(
+      "Agent IDs must look like bc_123abc or bc-uuid-format (letters, numbers, and hyphens only, at least 5 characters after bc- or bc_)."
+    );
     process.exit(1);
   }
 
@@ -102,15 +112,19 @@ export async function executeWatch(
     // Watch all agents in parallel
     const results = await Promise.all(
       agentIds.map((agentId) =>
-        watchSingleAgent(apiClient, agentId, interval, verbose).catch((error) => {
-          // Return error info instead of throwing
-          return { error, agentId } as const;
-        })
+        watchSingleAgent(apiClient, agentId, interval, verbose).catch(
+          (error) => {
+            // Return error info instead of throwing
+            return { error, agentId } as const;
+          }
+        )
       )
     );
 
     // Check for errors
-    const errors = results.filter((r): r is { error: unknown; agentId: string } => "error" in r);
+    const errors = results.filter(
+      (r): r is { error: unknown; agentId: string } => "error" in r
+    );
     if (errors.length > 0) {
       for (const { error, agentId } of errors) {
         if (error instanceof ApiError) {
@@ -118,7 +132,9 @@ export async function executeWatch(
         } else if (error instanceof Error) {
           console.error(`Error watching agent ${agentId}: ${error.message}`);
         } else {
-          console.error(`Error watching agent ${agentId}: Failed to watch agent status`);
+          console.error(
+            `Error watching agent ${agentId}: Failed to watch agent status`
+          );
         }
       }
       process.exit(1);
@@ -132,8 +148,11 @@ export async function executeWatch(
       console.error("");
       for (const agent of agents) {
         const statusDisplay = getStatusDisplay(agent.status);
-        const statusText = agent.status === "FINISHED" ? "completed" : "terminated";
-        console.error(`Agent ${agent.id} ${statusText}: ${statusDisplay.symbol} ${statusDisplay.label}`);
+        const statusText =
+          agent.status === "FINISHED" ? "completed" : "terminated";
+        console.error(
+          `Agent ${agent.id} ${statusText}: ${statusDisplay.symbol} ${statusDisplay.label}`
+        );
         if (agent.summary) {
           console.error(`  Summary: ${agent.summary}`);
         }
@@ -160,4 +179,3 @@ export async function executeWatch(
     process.exit(1);
   }
 }
-

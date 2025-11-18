@@ -67,7 +67,7 @@ async function buildCli() {
     // We need to rename it to cli.js
     const outputFile = "cloud-agent.js";
     const finalFile = "cli.js";
-    
+
     const fs = await import("fs/promises");
     try {
       // Check if output file exists

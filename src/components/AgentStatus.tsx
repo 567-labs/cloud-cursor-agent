@@ -95,19 +95,25 @@ export function AgentStatus({ apiClient, agentId, onBack }: AgentStatusProps) {
       <Box flexDirection="column" marginBottom={1}>
         <Box marginBottom={1}>
           <Text>
-            <Text color="gray" dimColor>Agent ID: </Text>
+            <Text color="gray" dimColor>
+              Agent ID:{" "}
+            </Text>
             <Text>{agent.id}</Text>
           </Text>
         </Box>
         <Box marginBottom={1}>
           <Text>
-            <Text color="gray" dimColor>Name: </Text>
+            <Text color="gray" dimColor>
+              Name:{" "}
+            </Text>
             <Text bold>{agent.name}</Text>
           </Text>
         </Box>
         <Box marginBottom={1}>
           <Text>
-            <Text color="gray" dimColor>Status: </Text>
+            <Text color="gray" dimColor>
+              Status:{" "}
+            </Text>
             {(() => {
               const statusDisplay = getStatusDisplay(agent.status);
               return (
@@ -120,34 +126,44 @@ export function AgentStatus({ apiClient, agentId, onBack }: AgentStatusProps) {
         </Box>
         <Box marginBottom={1}>
           <Text>
-            <Text color="gray" dimColor>Repository: </Text>
+            <Text color="gray" dimColor>
+              Repository:{" "}
+            </Text>
             <Text>{agent.source.repository}</Text>
           </Text>
         </Box>
         <Box marginBottom={1}>
           <Text>
-            <Text color="gray" dimColor>Ref: </Text>
+            <Text color="gray" dimColor>
+              Ref:{" "}
+            </Text>
             <Text>{agent.source.ref || "N/A"}</Text>
           </Text>
         </Box>
         {agent.target.branchName && (
           <Box marginBottom={1}>
             <Text>
-              <Text color="gray" dimColor>Branch: </Text>
+              <Text color="gray" dimColor>
+                Branch:{" "}
+              </Text>
               <Text>{agent.target.branchName}</Text>
             </Text>
           </Box>
         )}
         <Box marginBottom={1}>
           <Text>
-            <Text color="gray" dimColor>Preview URL: </Text>
+            <Text color="gray" dimColor>
+              Preview URL:{" "}
+            </Text>
             <Text color="cyan">{agent.target.url}</Text>
           </Text>
         </Box>
         {agent.target.prUrl && (
           <Box marginBottom={1}>
             <Text>
-              <Text color="gray" dimColor>Pull Request: </Text>
+              <Text color="gray" dimColor>
+                Pull Request:{" "}
+              </Text>
               <Text color="cyan">{agent.target.prUrl}</Text>
             </Text>
           </Box>
@@ -155,7 +171,9 @@ export function AgentStatus({ apiClient, agentId, onBack }: AgentStatusProps) {
         {agent.summary && (
           <Box marginTop={1} marginBottom={1} flexDirection="column">
             <Box marginBottom={0}>
-              <Text color="gray" dimColor>Summary:</Text>
+              <Text color="gray" dimColor>
+                Summary:
+              </Text>
             </Box>
             <Box marginTop={0}>
               <Text>{agent.summary}</Text>
@@ -164,16 +182,19 @@ export function AgentStatus({ apiClient, agentId, onBack }: AgentStatusProps) {
         )}
         <Box marginTop={1} marginBottom={0}>
           <Text>
-            <Text color="gray" dimColor>Created: </Text>
+            <Text color="gray" dimColor>
+              Created:{" "}
+            </Text>
             <Text>{new Date(agent.createdAt).toLocaleString()}</Text>
           </Text>
         </Box>
       </Box>
 
       <Box marginTop={2}>
-        <Text color="gray" dimColor>Press 'q' to go back</Text>
+        <Text color="gray" dimColor>
+          Press 'q' to go back
+        </Text>
       </Box>
     </Box>
   );
 }
-

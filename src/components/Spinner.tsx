@@ -32,5 +32,3 @@ export function Spinner({ text = "Loading", color = "gray" }: SpinnerProps) {
     </Text>
   );
 }
-
-

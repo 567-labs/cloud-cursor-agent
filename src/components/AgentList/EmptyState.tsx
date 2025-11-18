@@ -1,9 +1,9 @@
 /**
  * Empty state component for agent list
- * 
+ *
  * Displays a message when no agents are found, with different content
  * based on whether a filter is active.
- * 
+ *
  * @module components/AgentList/EmptyState
  */
 
@@ -19,13 +19,13 @@ export interface EmptyStateProps {
 
 /**
  * Component displayed when no agents are found.
- * 
+ *
  * Shows different messages based on whether a status filter is active.
  * Provides helpful instructions for creating agents or clearing filters.
- * 
+ *
  * @param props - Component props
  * @returns Empty state UI
- * 
+ *
  * @example
  * ```tsx
  * <EmptyState statusFilter={null} />
@@ -63,4 +63,3 @@ export function EmptyState({ statusFilter }: EmptyStateProps) {
     </Box>
   );
 }
-

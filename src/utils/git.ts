@@ -164,5 +164,3 @@ export function isGitRepository(workingDir: string = process.cwd()): boolean {
   const gitDir = join(workingDir, ".git");
   return existsSync(gitDir);
 }
-
-

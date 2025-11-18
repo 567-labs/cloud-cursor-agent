@@ -76,7 +76,7 @@ export function QuickLaunch({
         }
 
         setAgentUrl(agent.target.url);
-        
+
         // Exit after a short delay to ensure URL is displayed
         setTimeout(() => {
           setShouldExit(true);
@@ -84,15 +84,15 @@ export function QuickLaunch({
         }, 100);
       } catch (err) {
         let errorMessage = "Failed to launch agent: Unknown error";
-        
+
         if (err instanceof ApiError) {
           errorMessage = err.message;
         } else if (err instanceof Error) {
           errorMessage = err.message || errorMessage;
         }
-        
+
         setError(errorMessage);
-        
+
         // Exit on error after displaying it
         setTimeout(() => {
           setShouldExit(true);
@@ -113,4 +113,3 @@ export function QuickLaunch({
     </Box>
   );
 }
-

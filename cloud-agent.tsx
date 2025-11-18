@@ -24,15 +24,16 @@ async function main() {
 
   const args = process.argv.slice(2);
   const isHelp = args.includes("--help") || args.includes("-h");
-  const isNonInteractive = args.includes("--non-interactive") || args.includes("--no-interactive");
-  
+  const isNonInteractive =
+    args.includes("--non-interactive") || args.includes("--no-interactive");
+
   // Register commands with dummy context for help display (commands won't execute for help)
   const dummyContext: CommandContext = {
     apiClient: null as any, // Won't be used - only for help text
     workingDir: process.cwd(),
   };
   registerCommands(program, dummyContext);
-  
+
   // Show help without requiring API key
   if (isHelp || (args.length === 0 && isNonInteractive)) {
     program.help();
@@ -65,18 +66,35 @@ async function main() {
   // Note: Commander.js stores command handlers, so we need to update them
   // For now, we'll re-register which overwrites the previous registration
   const realProgram = new Command();
-  realProgram.name("cloud-agent").description("CLI tool for managing Cursor Cloud Agents").version("1.0.0");
+  realProgram
+    .name("cloud-agent")
+    .description("CLI tool for managing Cursor Cloud Agents")
+    .version("1.0.0");
   registerCommands(realProgram, context);
 
   // Handle interactive mode (no command) - show main menu
-  const hasCommand = args.length > 0 && !args[0].startsWith("-") && ["launch", "list", "status", "watch", "cancel", "followup", "conversation", "open", "delete", "batch-delete"].includes(args[0]);
-  
+  const hasCommand =
+    args.length > 0 &&
+    !args[0].startsWith("-") &&
+    [
+      "launch",
+      "list",
+      "status",
+      "watch",
+      "cancel",
+      "followup",
+      "conversation",
+      "open",
+      "delete",
+      "batch-delete",
+    ].includes(args[0]);
+
   // Only show interactive menu if:
   // 1. No command provided
   // 2. Not non-interactive mode
   // 3. stdin is a TTY (interactive terminal)
   const isTTY = process.stdin.isTTY;
-  
+
   if (!hasCommand) {
     if (!isNonInteractive && isTTY) {
       // Show interactive menu

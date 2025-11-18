@@ -2,7 +2,9 @@
  * Input validation utilities
  */
 
-export type ValidationResult = { valid: true } | { valid: false; error: string };
+export type ValidationResult =
+  | { valid: true }
+  | { valid: false; error: string };
 
 const GITHUB_OWNER_REGEX = /^[A-Za-z0-9](?:[A-Za-z0-9._-]{0,38})$/;
 const GITHUB_REPO_REGEX = /^[A-Za-z0-9](?:[A-Za-z0-9._-]{0,99})$/;
@@ -61,11 +63,15 @@ export function validateRepositoryUrl(url: string): ValidationResult {
     try {
       parsedUrl = new URL(trimmed);
     } catch {
-      return failure("Repository URL is not a valid URL. Example: https://github.com/owner/repo");
+      return failure(
+        "Repository URL is not a valid URL. Example: https://github.com/owner/repo"
+      );
     }
 
     if (parsedUrl.protocol !== "https:") {
-      return failure("Use an https:// GitHub URL (e.g., https://github.com/owner/repo).");
+      return failure(
+        "Use an https:// GitHub URL (e.g., https://github.com/owner/repo)."
+      );
     }
 
     if (parsedUrl.hostname.toLowerCase() !== "github.com") {
@@ -80,21 +86,29 @@ export function validateRepositoryUrl(url: string): ValidationResult {
       .filter(Boolean);
 
     if (pathParts.length < 2) {
-      return failure("Repository URL must include both the owner and repository name (e.g., github.com/owner/repo).");
+      return failure(
+        "Repository URL must include both the owner and repository name (e.g., github.com/owner/repo)."
+      );
     }
 
     if (pathParts.length > 2) {
-      return failure("Repository URL should only include the owner and repository. Remove extra path segments.");
+      return failure(
+        "Repository URL should only include the owner and repository. Remove extra path segments."
+      );
     }
 
     const [owner, repo] = pathParts;
 
     if (!GITHUB_OWNER_REGEX.test(owner)) {
-      return failure("Owner contains unsupported characters. Use letters, numbers, dots, underscores, or dashes.");
+      return failure(
+        "Owner contains unsupported characters. Use letters, numbers, dots, underscores, or dashes."
+      );
     }
 
     if (!GITHUB_REPO_REGEX.test(repo)) {
-      return failure("Repository name contains unsupported characters. Use letters, numbers, dots, underscores, or dashes.");
+      return failure(
+        "Repository name contains unsupported characters. Use letters, numbers, dots, underscores, or dashes."
+      );
     }
 
     return success();
@@ -112,17 +126,23 @@ export function validateRepositoryUrl(url: string): ValidationResult {
     const [owner, repo] = segments;
 
     if (!GITHUB_OWNER_REGEX.test(owner)) {
-      return failure("Owner contains unsupported characters. Use letters, numbers, dots, underscores, or dashes.");
+      return failure(
+        "Owner contains unsupported characters. Use letters, numbers, dots, underscores, or dashes."
+      );
     }
 
     if (!GITHUB_REPO_REGEX.test(repo)) {
-      return failure("Repository name contains unsupported characters. Use letters, numbers, dots, underscores, or dashes.");
+      return failure(
+        "Repository name contains unsupported characters. Use letters, numbers, dots, underscores, or dashes."
+      );
     }
 
     return success();
   }
 
-  return failure("Invalid repository URL. Use https://github.com/owner/repo or git@github.com:owner/repo.");
+  return failure(
+    "Invalid repository URL. Use https://github.com/owner/repo or git@github.com:owner/repo."
+  );
 }
 
 /**
@@ -153,7 +173,9 @@ export function validateRef(ref: string): ValidationResult {
   }
 
   if (INVALID_REF_CHARACTERS.test(trimmed)) {
-    return failure("Ref cannot contain spaces or any of ~ ^ : ? * [ ] \\ characters.");
+    return failure(
+      "Ref cannot contain spaces or any of ~ ^ : ? * [ ] \\ characters."
+    );
   }
 
   if (trimmed.startsWith("/") || trimmed.endsWith("/")) {
@@ -164,7 +186,11 @@ export function validateRef(ref: string): ValidationResult {
     return failure("Ref cannot contain consecutive slashes.");
   }
 
-  if (trimmed.startsWith(".") || trimmed.endsWith(".") || trimmed.includes("..")) {
+  if (
+    trimmed.startsWith(".") ||
+    trimmed.endsWith(".") ||
+    trimmed.includes("..")
+  ) {
     return failure("Ref cannot start, end, or contain consecutive periods.");
   }
 
@@ -231,7 +257,9 @@ export function validateAgentId(id: string): ValidationResult {
   }
 
   if (!AGENT_ID_REGEX.test(trimmed)) {
-    return failure("Agent ID must look like bc_123abc or bc-uuid-format (letters, numbers, and hyphens only, at least 5 characters after bc- or bc_).");
+    return failure(
+      "Agent ID must look like bc_123abc or bc-uuid-format (letters, numbers, and hyphens only, at least 5 characters after bc- or bc_)."
+    );
   }
 
   return success();
@@ -285,15 +313,21 @@ export function validateBranchName(branch: string): ValidationResult {
   const trimmed = branch.trim();
 
   if (trimmed === "HEAD") {
-    return failure("Branch name cannot be 'HEAD' because it is reserved by git.");
+    return failure(
+      "Branch name cannot be 'HEAD' because it is reserved by git."
+    );
   }
 
   if (/^refs\//i.test(trimmed)) {
-    return failure("Provide the branch name without the 'refs/' prefix (e.g., use main instead of refs/heads/main).");
+    return failure(
+      "Provide the branch name without the 'refs/' prefix (e.g., use main instead of refs/heads/main)."
+    );
   }
 
   if (!/[A-Za-z]/.test(trimmed)) {
-    return failure("Branch name should include at least one letter to keep it descriptive.");
+    return failure(
+      "Branch name should include at least one letter to keep it descriptive."
+    );
   }
 
   return success();
@@ -320,7 +354,9 @@ export function validatePlanFilePath(filePath: string): ValidationResult {
   }
 
   if (INVALID_PLAN_PATH_CHARS.test(trimmed)) {
-    return failure("Plan file path cannot include any of the following characters: < > : \" | ? *");
+    return failure(
+      'Plan file path cannot include any of the following characters: < > : " | ? *'
+    );
   }
 
   if (trimmed.endsWith("/") || trimmed.endsWith("\\")) {
@@ -328,9 +364,13 @@ export function validatePlanFilePath(filePath: string): ValidationResult {
   }
 
   const lowercasePath = trimmed.toLowerCase();
-  const hasValidExtension = PLAN_EXTENSIONS.some((ext) => lowercasePath.endsWith(ext));
+  const hasValidExtension = PLAN_EXTENSIONS.some((ext) =>
+    lowercasePath.endsWith(ext)
+  );
   if (!hasValidExtension) {
-    return failure(`Plan file must end with one of the following extensions: ${PLAN_EXTENSIONS.join(", ")}`);
+    return failure(
+      `Plan file must end with one of the following extensions: ${PLAN_EXTENSIONS.join(", ")}`
+    );
   }
 
   return success();
@@ -357,22 +397,31 @@ export function validatePlanContent(content: string): ValidationResult {
 
   const withoutFrontmatter = trimmed.replace(FRONTMATTER_REGEX, "").trim();
   if (withoutFrontmatter.length === 0) {
-    return failure("Plan content only contains frontmatter. Add the actual plan under the metadata.");
+    return failure(
+      "Plan content only contains frontmatter. Add the actual plan under the metadata."
+    );
   }
 
   if (withoutFrontmatter.length < 20) {
-    return failure("Plan content is too short. Add a few sentences or bullet points describing the work.");
+    return failure(
+      "Plan content is too short. Add a few sentences or bullet points describing the work."
+    );
   }
 
   if (/^\s*(todo|tbd|coming soon)\s*$/i.test(withoutFrontmatter)) {
-    return failure("Plan content cannot be a placeholder like TODO or TBD. Provide concrete steps.");
+    return failure(
+      "Plan content cannot be a placeholder like TODO or TBD. Provide concrete steps."
+    );
   }
 
-  const hasStructure = /(^|\n)\s*(?:#|\d+\.|[-*])\s+\S+/m.test(withoutFrontmatter);
+  const hasStructure = /(^|\n)\s*(?:#|\d+\.|[-*])\s+\S+/m.test(
+    withoutFrontmatter
+  );
   if (!hasStructure) {
-    return failure("Plan content should include at least one heading or bullet so it can be parsed.");
+    return failure(
+      "Plan content should include at least one heading or bullet so it can be parsed."
+    );
   }
 
   return success();
 }
-

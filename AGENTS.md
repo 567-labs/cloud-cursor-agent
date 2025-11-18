@@ -20,6 +20,7 @@ bun run cloud-agent.tsx launch --plan plan/bug-fixes/type-errors.md
 ```bash
 bun run cloud-agent.tsx launch --plan <file>
 ```
+
 - `plan/vim-support/vim-keybindings.md`
 
 ### Model Selection
@@ -105,15 +106,18 @@ For large refactorings that touch the same file, use a **phased approach** with 
 # Refactor AgentList Phase 1: Extract Utilities
 
 ## Goals
+
 - Move grouping functions to separate utility file
 - Move layout functions to separate utility file
 
 ## Tasks
+
 - Create `src/utils/grouping.ts` (new file)
 - Create `src/utils/layout.ts` (new file)
 - Update `src/components/AgentList.tsx` (remove code, add imports)
 
 ## Expected Outcome
+
 - AgentList.tsx reduced by ~180-200 lines
 - Utilities are reusable across components
 ```
@@ -122,12 +126,15 @@ For large refactorings that touch the same file, use a **phased approach** with 
 
 ```markdown
 # Extract Grouping Utilities
+
 - Modify AgentList.tsx
 
-# Extract Layout Utilities  
+# Extract Layout Utilities
+
 - Modify AgentList.tsx
 
 # Extract Rendering Components
+
 - Modify AgentList.tsx
 ```
 
@@ -234,6 +241,7 @@ bun run cloud-agent.tsx batch-delete --repo https://github.com/org/repo --force
 Tests use Bun's built-in test runner with React Testing Library for component tests. The test infrastructure is set up in `src/test/`.
 
 **Run tests:**
+
 ```bash
 bun test                    # Run all tests
 bun test --watch           # Watch mode
@@ -249,6 +257,7 @@ bun test --coverage        # With coverage report
 ### Test Structure
 
 **Utility function tests:**
+
 ```typescript
 import { test, expect } from "bun:test";
 import { truncate } from "../utils/formatting.js";
@@ -259,6 +268,7 @@ test("truncate: truncates strings longer than maxLength", () => {
 ```
 
 **React component tests:**
+
 ```typescript
 import { test, expect } from "bun:test";
 import { render, screen } from "@testing-library/react";
@@ -273,6 +283,7 @@ test("renders agent name with status symbol", () => {
 ```
 
 **Hook tests:**
+
 ```typescript
 import { test, expect } from "bun:test";
 import { renderHook } from "@testing-library/react";
@@ -280,7 +291,7 @@ import { useAgentList } from "../hooks/useAgentList.js";
 import { createMockApiClient } from "../../test/utils.jsx";
 
 test("initial state: loading is true, agents empty", () => {
-  const { result } = renderHook(() => 
+  const { result } = renderHook(() =>
     useAgentList({ apiClient: createMockApiClient(), agentsPerView: 10 })
   );
   expect(result.current.loading).toBe(true);
@@ -298,26 +309,30 @@ Import utilities from `src/test/utils.tsx`:
 - `renderWithProviders(ui, options?)` - Custom render with providers
 
 **Example:**
+
 ```typescript
 import { createMockAgent, createMockApiClient } from "../../test/utils.jsx";
 
-const agent = createMockAgent({ 
+const agent = createMockAgent({
   status: "FINISHED",
-  name: "Custom Agent" 
+  name: "Custom Agent",
 });
 ```
 
 ### Mocking Guidelines
 
 **Mock Ink components:**
+
 - Use mocks from `src/test/mocks/ink.ts` for Ink components
 - Mock `useStdout` and `useInput` hooks when testing components that use them
 - Example: `vi.mock("ink", () => import("../../test/mocks/ink.js"))`
 
 **Mock API calls:**
+
 - Use `createMockApiClient()` for API client mocks
 - Override specific methods as needed in tests
 - Example:
+
 ```typescript
 const mockClient = createMockApiClient();
 mockClient.listAgents = async () => ({
@@ -327,6 +342,7 @@ mockClient.listAgents = async () => ({
 ```
 
 **Mock time-dependent functions:**
+
 - Use Bun's `jest.useFakeTimers()` or similar for time-based tests
 - Example: Testing `getRelativeTime` or status transition timeouts
 
@@ -354,11 +370,11 @@ describe("filterAgentsByStatus", () => {
       createMockAgent({ status: "FINISHED" }),
       createMockAgent({ status: "RUNNING" }),
     ];
-    
+
     const filtered = filterAgentsByStatus(agents, "RUNNING");
-    
+
     expect(filtered).toHaveLength(2);
-    expect(filtered.every(a => a.status === "RUNNING")).toBe(true);
+    expect(filtered.every((a) => a.status === "RUNNING")).toBe(true);
   });
 
   test("returns all agents when filter is null", () => {

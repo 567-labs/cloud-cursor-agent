@@ -94,9 +94,13 @@ export async function executeLaunch(
         console.error("Error: Not in a git repository.");
         console.error("");
         console.error("Please provide --repo and --ref flags:");
-        console.error("  cloud-agent launch --plan plan.md --repo https://github.com/org/repo --ref main");
+        console.error(
+          "  cloud-agent launch --plan plan.md --repo https://github.com/org/repo --ref main"
+        );
         console.error("");
-        console.error("Or navigate to a git repository with a remote configured.");
+        console.error(
+          "Or navigate to a git repository with a remote configured."
+        );
         process.exit(1);
       }
 
@@ -105,9 +109,13 @@ export async function executeLaunch(
         console.error("Error: Could not detect git repository information.");
         console.error("");
         console.error("Please provide --repo and --ref flags:");
-        console.error("  cloud-agent launch --plan plan.md --repo https://github.com/org/repo --ref main");
+        console.error(
+          "  cloud-agent launch --plan plan.md --repo https://github.com/org/repo --ref main"
+        );
         console.error("");
-        console.error("Or ensure your git repository has a remote 'origin' configured.");
+        console.error(
+          "Or ensure your git repository has a remote 'origin' configured."
+        );
         process.exit(1);
       }
       repository = repo || gitInfo.repository;
@@ -117,10 +125,14 @@ export async function executeLaunch(
       if (!ref) {
         const refValidation = validateRef(gitRef);
         if (!refValidation.valid) {
-          console.error(`Error: Auto-detected ref "${gitRef}" is invalid: ${refValidation.error}`);
+          console.error(
+            `Error: Auto-detected ref "${gitRef}" is invalid: ${refValidation.error}`
+          );
           console.error("");
           console.error("Please provide a valid --ref flag:");
-          console.error("  cloud-agent launch --plan plan.md --repo https://github.com/org/repo --ref main");
+          console.error(
+            "  cloud-agent launch --plan plan.md --repo https://github.com/org/repo --ref main"
+          );
           process.exit(1);
         }
       }
@@ -184,7 +196,9 @@ export async function executeLaunch(
         // Validate provided model
         if (!isValidModel(model)) {
           console.error(`Error: Invalid model "${model}"`);
-          console.error(`Supported models: ${Object.values(MODELS).join(", ")}`);
+          console.error(
+            `Supported models: ${Object.values(MODELS).join(", ")}`
+          );
           process.exit(1);
         }
         selectedModel = model;
@@ -228,5 +242,3 @@ export async function executeLaunch(
     process.exit(1);
   }
 }
-
-
