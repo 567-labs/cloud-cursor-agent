@@ -2,17 +2,61 @@
 
 A React Ink-based CLI tool for managing Cursor Cloud Agents. Launch agents, list them, and view their status directly from your terminal.
 
-## Installation
+## Why use this?
+
+This CLI enables **Agent Orchestration**: allowing you (or your agents) to programmatically kick off other parallel agents.
+
+**Example: Managing Large Refactors**
+
+A compelling use case is identifying multiple files that need independent changes (e.g., refactoring to smaller components or adding tests). Instead of one massive 10,000-line pull request, you can use this CLI to:
+
+1.  **Identify** the distinct files or services that need work.
+2.  **Launch** parallel "sub-agents" for each task using this CLI.
+3.  **Receive** smaller, focused PRs that are easier to review.
+
+## Installing as a CLI Tool
+
+Install this tool globally so you can run `cloud-agent` from any directory:
+
+### Prerequisites
+
+- **Node.js** (v18 or later) - [Download here](https://nodejs.org/)
+- **Bun** (for building) - Install with: `curl -fsSL https://bun.sh/install | bash`
+
+### Installation Steps
 
 ```bash
-# Install Bun if you haven't already
+# 1. Clone the repository
+git clone https://github.com/jxnl/cloud-cursor-agent.git
+cd cloud-cursor-agent
+
+# 2. Install Bun if you don't have it
 curl -fsSL https://bun.sh/install | bash
 
-# Install dependencies
+# 3. Install dependencies and build
 bun install
-
-# Build the CLI
 bun run build
+
+# 4. Install globally (creates tarball, installs, and cleans up automatically)
+npm run install:global
+
+# 5. Verify installation
+cloud-agent --help
+```
+
+**Note:** The `install:global` script automatically handles creating the package tarball, installing globally, and cleaning up. This is required because some dependencies (like `yoga-wasm-web` used by `ink`) need to be installed separately rather than bundled.
+
+### Verify Installation
+
+After installation, you should be able to run `cloud-agent` from any directory:
+
+```bash
+# Test from any directory
+cd /tmp
+cloud-agent --help
+
+# Use it to launch an agent
+cloud-agent launch --plan plan.md
 ```
 
 ## Setup
@@ -27,11 +71,19 @@ You can obtain an API key from [Cursor Settings](https://cursor.com/settings).
 
 ## Usage
 
+After installation, you can use the `cloud-agent` command directly. If you built from source, use `./cli.js` or `bun run cloud-agent.tsx` instead.
+
 ### Quick Launch (Primary Workflow)
 
 Launch an agent from a plan file:
 
 ```bash
+# If installed globally
+cloud-agent launch --plan <PLAN_FILE>
+
+# If built from source
+./cli.js launch --plan <PLAN_FILE>
+# or
 bun run cloud-agent.tsx launch --plan <PLAN_FILE>
 ```
 
@@ -304,12 +356,16 @@ bun run cloud-agent.tsx install-agents-md --file docs/CLI.md
 
 # Specify working directory
 bun run cloud-agent.tsx install-agents-md --dir /path/to/repo
+
+# Force overwrite existing instructions
+bun run cloud-agent.tsx install-agents-md --force
 ```
 
 **Options:**
 
 - `--file <path>` - Path to AGENTS.md file (default: AGENTS.md)
 - `--dir <path>` - Working directory for file operations
+- `--force` - Force installation even if instructions already exist (overwrites existing instructions)
 
 This command:
 
