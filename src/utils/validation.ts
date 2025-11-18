@@ -3,8 +3,16 @@
  */
 
 /**
- * Validate a GitHub repository URL
- * Accepts both HTTPS and SSH formats
+ * Validate a GitHub repository URL entered by a user.
+ *
+ * Accepts HTTPS (`https://github.com/org/repo`) and SSH (`git@github.com:org/repo`) formats
+ * and normalizes obvious mistakes such as stray whitespace.
+ *
+ * @param {string} url - Raw repository URL provided by the user interface.
+ * @returns {{ valid: boolean; error?: string }} Result describing whether the value passed basic checks.
+ * @example
+ * validateRepositoryUrl("https://github.com/buildwithcontext/app");
+ * // => { valid: true }
  */
 export function validateRepositoryUrl(url: string): { valid: boolean; error?: string } {
   if (!url || typeof url !== "string") {
@@ -36,7 +44,13 @@ export function validateRepositoryUrl(url: string): { valid: boolean; error?: st
 }
 
 /**
- * Validate a git ref (branch, tag, or commit hash)
+ * Validate a git ref value (branch name, tag, or commit hash).
+ *
+ * Ensures the string exists, is not empty after trimming, and does not include
+ * characters that git disallows in ref names.
+ *
+ * @param {string} ref - Candidate git ref string from user input.
+ * @returns {{ valid: boolean; error?: string }} Validation result with an error reason when invalid.
  */
 export function validateRef(ref: string): { valid: boolean; error?: string } {
   if (!ref || typeof ref !== "string") {
@@ -61,7 +75,12 @@ export function validateRef(ref: string): { valid: boolean; error?: string } {
 }
 
 /**
- * Validate a file path
+ * Validate a file path string gathered from configuration.
+ *
+ * Currently checks only for presence and non-empty length once trimmed.
+ *
+ * @param {string} filePath - File path that may be relative or absolute.
+ * @returns {{ valid: boolean; error?: string }} Validation result describing whether the path looks usable.
  */
 export function validateFilePath(filePath: string): { valid: boolean; error?: string } {
   if (!filePath || typeof filePath !== "string") {
@@ -78,7 +97,12 @@ export function validateFilePath(filePath: string): { valid: boolean; error?: st
 }
 
 /**
- * Validate an agent ID
+ * Validate an agent identifier, typically returned from the backend.
+ *
+ * Ensures the ID exists, trims it, and enforces a basic prefix/length check like `bc_abc123`.
+ *
+ * @param {string} id - Agent identifier supplied by the user.
+ * @returns {{ valid: boolean; error?: string }} Flag describing if the ID matches the expected format.
  */
 export function validateAgentId(id: string): { valid: boolean; error?: string } {
   if (!id || typeof id !== "string") {
@@ -103,7 +127,12 @@ export function validateAgentId(id: string): { valid: boolean; error?: string } 
 }
 
 /**
- * Validate API key format (basic check)
+ * Validate an API key string for obvious problems (empty, too short).
+ *
+ * These checks help minimize round trips before the key hits the network or backend.
+ *
+ * @param {string} apiKey - API key captured from local input.
+ * @returns {{ valid: boolean; error?: string }} Result noting whether the key is plausibly valid.
  */
 export function validateApiKey(apiKey: string): { valid: boolean; error?: string } {
   if (!apiKey || typeof apiKey !== "string") {
