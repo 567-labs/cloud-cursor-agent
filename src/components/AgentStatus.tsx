@@ -8,28 +8,12 @@ import { Box, Text, useInput } from "ink";
 import { CloudAgentsApiClient, ApiError } from "../api/client.js";
 import { Spinner } from "./Spinner.js";
 import type { Agent } from "../api/schemas.js";
+import { getStatusDisplay } from "../utils/status.js";
 
 interface AgentStatusProps {
   apiClient: CloudAgentsApiClient;
   agentId: string;
   onBack: () => void;
-}
-
-function getStatusDisplay(status: string): { symbol: string; label: string; color: string } {
-  switch (status) {
-    case "CREATING":
-      return { symbol: "●", label: "Creating", color: "yellow" };
-    case "RUNNING":
-      return { symbol: "▶", label: "Running", color: "green" };
-    case "FINISHED":
-      return { symbol: "✓", label: "Finished", color: "green" };
-    case "FAILED":
-      return { symbol: "✗", label: "Failed", color: "red" };
-    case "CANCELLED":
-      return { symbol: "○", label: "Cancelled", color: "gray" };
-    default:
-      return { symbol: "?", label: status, color: "gray" };
-  }
 }
 
 export function AgentStatus({ apiClient, agentId, onBack }: AgentStatusProps) {
