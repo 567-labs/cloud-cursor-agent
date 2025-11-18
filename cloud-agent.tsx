@@ -69,7 +69,7 @@ async function main() {
   registerCommands(realProgram, context);
 
   // Handle interactive mode (no command) - show main menu
-  const hasCommand = args.length > 0 && !args[0].startsWith("-") && ["launch", "list", "status"].includes(args[0]);
+  const hasCommand = args.length > 0 && !args[0].startsWith("-") && ["launch", "list", "status", "watch", "cancel", "followup", "conversation", "open", "delete", "batch-delete"].includes(args[0]);
   
   // Only show interactive menu if:
   // 1. No command provided

@@ -635,22 +635,9 @@ export function AgentList({ apiClient, onBack, repositoryFilter }: AgentListProp
           setTimeout(() => setOpeningBrowser(null), 2000);
         }
       } else {
-        // Single Enter: Toggle expansion and auto-open agent URL
-        const isExpanding = expandedAgentId !== selectedAgent.id;
+        // Single Enter: Toggle expansion (show/hide status details)
         setExpandedAgentId(expandedAgentId === selectedAgent.id ? null : selectedAgent.id);
         setLastEnterPress(now);
-        
-        // Auto-open agent URL when expanding
-        if (isExpanding) {
-          try {
-            setOpeningBrowser(selectedAgent.id);
-            await openInBrowser(selectedAgent.target.url);
-            setTimeout(() => setOpeningBrowser(null), 1000);
-          } catch (err) {
-            // Silently handle errors to avoid disrupting the UI
-            setTimeout(() => setOpeningBrowser(null), 2000);
-          }
-        }
       }
     }
   });
@@ -722,7 +709,7 @@ export function AgentList({ apiClient, onBack, repositoryFilter }: AgentListProp
   const footerHintParts = [
     ...paginationHintParts,
     "↑↓/jk Navigate",
-    "Enter Expand",
+    "Enter Expand/Status",
     `Enter twice Open ${openPrUrl ? "PR" : "Agent"}`,
     "q Back",
     "r Refresh",

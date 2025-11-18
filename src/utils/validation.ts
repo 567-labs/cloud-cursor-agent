@@ -10,7 +10,8 @@ const INVALID_REF_CHARACTERS = /[\u0000-\u001F\u007F\s~^:?*\[\]\\]/;
 const FRONTMATTER_REGEX = /^---\s*\r?\n[\s\S]*?\r?\n---\s*\r?\n?/;
 const PLAN_EXTENSIONS = [".md", ".markdown", ".plan", ".txt"];
 const INVALID_PLAN_PATH_CHARS = /[<>:"|?*\u0000]/;
-const AGENT_ID_REGEX = /^bc_[a-z0-9]{5,}$/i;
+// Accept both formats: bc_abc123 (old) or bc-uuid-format (new UUID format)
+const AGENT_ID_REGEX = /^bc[-_][a-z0-9-]{5,}$/i;
 
 const success = (): ValidationResult => ({ valid: true });
 const failure = (error: string): ValidationResult => ({ valid: false, error });
@@ -203,7 +204,7 @@ export function validateAgentId(id: string): ValidationResult {
   }
 
   if (!AGENT_ID_REGEX.test(trimmed)) {
-    return failure("Agent ID must look like bc_123abc (letters and numbers only, at least 5 characters after bc_).");
+    return failure("Agent ID must look like bc_123abc or bc-uuid-format (letters, numbers, and hyphens only, at least 5 characters after bc- or bc_).");
   }
 
   return success();

@@ -16,3 +16,4 @@ export interface Command {
   execute(context: CommandContext, options: Record<string, unknown>): Promise<void>;
 }
 
+

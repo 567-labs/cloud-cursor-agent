@@ -159,3 +159,4 @@ export function isGitRepository(workingDir: string = process.cwd()): boolean {
   return existsSync(gitDir);
 }
 
+

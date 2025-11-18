@@ -20,8 +20,8 @@ export function MainMenu({ onSelectListAgentsAll, onSelectListAgentsRepo, onExit
   const terminalWidth = process.stdout.columns || 80;
 
   const options = [
-    { label: "List Agents (All)", action: onSelectListAgentsAll },
     { label: "List Agents (This Repo)", action: onSelectListAgentsRepo },
+    { label: "List Agents (All)", action: onSelectListAgentsAll },
     { label: "Exit", action: () => { exit(); onExit(); } },
   ];
 

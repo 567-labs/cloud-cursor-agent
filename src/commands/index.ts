@@ -69,13 +69,13 @@ export function registerCommands(program: Command, context: CommandContext): voi
 
   // Watch command
   program
-    .command("watch <agent-id>")
-    .description("Watch agent status and block until it completes")
+    .command("watch <agent-ids...>")
+    .description("Watch agent status(es) and block until they complete. Can watch multiple agents by providing space-separated IDs.")
     .option("--interval <ms>", "Polling interval in milliseconds", "2000")
     .option("--verbose, -v", "Show verbose output")
-    .action(async (agentId: string, options) => {
+    .action(async (agentIds: string[], options) => {
       await executeWatch(context, {
-        agentId,
+        agentIds,
         interval: options.interval ? parseInt(options.interval, 10) : undefined,
         verbose: options.verbose || false,
       });

@@ -1,15 +1,15 @@
 /**
- * Watch command - Block until agent completes
+ * Watch command - Block until agent(s) complete
  */
 
 import { ApiError } from "../api/client.js";
 import type { CommandContext } from "../cli/types.js";
 import { validateAgentId } from "../utils/validation.js";
 import { getStatusDisplay } from "../utils/status.js";
-import type { AgentStatus } from "../api/schemas.js";
+import type { AgentStatus, Agent } from "../api/schemas.js";
 
 interface WatchOptions {
-  agentId: string;
+  agentIds: string[];
   interval?: number;
   verbose?: boolean;
 }
@@ -24,77 +24,131 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/**
+ * Watch a single agent until it reaches a terminal state
+ */
+async function watchSingleAgent(
+  apiClient: CommandContext["apiClient"],
+  agentId: string,
+  interval: number,
+  verbose: boolean
+): Promise<Agent> {
+  // Initial status check
+  let agent = await apiClient.getAgentStatus(agentId);
+
+  if (verbose) {
+    console.error(`Watching agent ${agentId}...`);
+    console.error(`Initial status: ${agent.status}`);
+  }
+
+  // If already in terminal state, return immediately
+  if (TERMINAL_STATUSES.includes(agent.status)) {
+    if (verbose) {
+      const statusDisplay = getStatusDisplay(agent.status);
+      console.error(`Agent ${agentId} is already ${statusDisplay.label.toLowerCase()}.`);
+    }
+    return agent;
+  }
+
+  // Poll until terminal state
+  let lastStatus = agent.status;
+  while (!TERMINAL_STATUSES.includes(agent.status)) {
+    // Show status change if verbose
+    if (verbose && agent.status !== lastStatus) {
+      const statusDisplay = getStatusDisplay(agent.status);
+      console.error(`[${agentId}] Status changed: ${statusDisplay.symbol} ${statusDisplay.label}`);
+      lastStatus = agent.status;
+    }
+
+    // Wait before next poll
+    await sleep(interval);
+
+    // Fetch updated status
+    agent = await apiClient.getAgentStatus(agentId);
+  }
+
+  return agent;
+}
+
 export async function executeWatch(
   context: CommandContext,
   options: WatchOptions
 ): Promise<void> {
   const { apiClient } = context;
-  const { agentId, interval = DEFAULT_POLL_INTERVAL, verbose = false } = options;
+  const { agentIds, interval = DEFAULT_POLL_INTERVAL, verbose = false } = options;
 
-  // Validate agent ID format
-  const agentIdValidation = validateAgentId(agentId);
-  if (!agentIdValidation.valid) {
-    console.error(`Error: ${agentIdValidation.error}`);
+  // Validate all agent IDs
+  const invalidIds: string[] = [];
+  for (const agentId of agentIds) {
+    const agentIdValidation = validateAgentId(agentId);
+    if (!agentIdValidation.valid) {
+      invalidIds.push(agentId);
+    }
+  }
+
+  if (invalidIds.length > 0) {
+    console.error(`Error: Invalid agent ID(s): ${invalidIds.join(", ")}`);
     console.error("");
-    console.error("Agent ID must look like bc_123abc (letters and numbers only, at least 5 characters after bc_).");
+    console.error("Agent IDs must look like bc_123abc or bc-uuid-format (letters, numbers, and hyphens only, at least 5 characters after bc- or bc_).");
     process.exit(1);
   }
 
+  if (verbose && agentIds.length > 1) {
+    console.error(`Watching ${agentIds.length} agent(s)...`);
+    console.error("");
+  }
+
   try {
-    // Initial status check
-    let agent = await apiClient.getAgentStatus(agentId);
+    // Watch all agents in parallel
+    const results = await Promise.all(
+      agentIds.map((agentId) =>
+        watchSingleAgent(apiClient, agentId, interval, verbose).catch((error) => {
+          // Return error info instead of throwing
+          return { error, agentId } as const;
+        })
+      )
+    );
 
-    if (verbose) {
-      console.error(`Watching agent ${agentId}...`);
-      console.error(`Initial status: ${agent.status}`);
-      console.error("");
-    }
-
-    // If already in terminal state, exit immediately
-    if (TERMINAL_STATUSES.includes(agent.status)) {
-      const statusDisplay = getStatusDisplay(agent.status);
-      if (verbose) {
-        console.error(`Agent is already ${statusDisplay.label.toLowerCase()}.`);
+    // Check for errors
+    const errors = results.filter((r): r is { error: unknown; agentId: string } => "error" in r);
+    if (errors.length > 0) {
+      for (const { error, agentId } of errors) {
+        if (error instanceof ApiError) {
+          console.error(`Error watching agent ${agentId}: ${error.message}`);
+        } else if (error instanceof Error) {
+          console.error(`Error watching agent ${agentId}: ${error.message}`);
+        } else {
+          console.error(`Error watching agent ${agentId}: Failed to watch agent status`);
+        }
       }
-      // Exit with code 0 for FINISHED, 1 for FAILED/CANCELLED
-      process.exit(agent.status === "FINISHED" ? 0 : 1);
+      process.exit(1);
       return;
     }
 
-    // Poll until terminal state
-    let lastStatus = agent.status;
-    while (!TERMINAL_STATUSES.includes(agent.status)) {
-      // Show status change if verbose
-      if (verbose && agent.status !== lastStatus) {
-        const statusDisplay = getStatusDisplay(agent.status);
-        console.error(`Status changed: ${statusDisplay.symbol} ${statusDisplay.label}`);
-        lastStatus = agent.status;
-      }
+    // All agents completed successfully
+    const agents = results as Agent[];
 
-      // Wait before next poll
-      await sleep(interval);
-
-      // Fetch updated status
-      agent = await apiClient.getAgentStatus(agentId);
-    }
-
-    // Agent reached terminal state
-    const statusDisplay = getStatusDisplay(agent.status);
     if (verbose) {
       console.error("");
-      console.error(`Agent ${agent.status === "FINISHED" ? "completed" : "terminated"}: ${statusDisplay.symbol} ${statusDisplay.label}`);
-      if (agent.summary) {
+      for (const agent of agents) {
+        const statusDisplay = getStatusDisplay(agent.status);
+        const statusText = agent.status === "FINISHED" ? "completed" : "terminated";
+        console.error(`Agent ${agent.id} ${statusText}: ${statusDisplay.symbol} ${statusDisplay.label}`);
+        if (agent.summary) {
+          console.error(`  Summary: ${agent.summary}`);
+        }
+        if (agent.target.prUrl) {
+          console.error(`  PR URL: ${agent.target.prUrl}`);
+        }
         console.error("");
-        console.error(`Summary:\n${agent.summary}`);
-      }
-      if (agent.target.prUrl) {
-        console.error("");
-        console.error(`PR URL: ${agent.target.prUrl}`);
       }
     }
 
-    // Exit with code 0 for FINISHED, 1 for FAILED/CANCELLED
-    process.exit(agent.status === "FINISHED" ? 0 : 1);
+    // Determine exit code: 0 if all finished successfully, 1 if any failed/cancelled
+    const allFinished = agents.every((agent) => agent.status === "FINISHED");
+
+    // Exit with code 0 if all finished, 1 otherwise
+    process.exit(allFinished ? 0 : 1);
   } catch (error) {
     if (error instanceof ApiError) {
       console.error(`Error: ${error.message}`);
