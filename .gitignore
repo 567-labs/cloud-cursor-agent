@@ -6,4 +6,5 @@ cloud-agent.js.map
 dist/
 *.log
 bun.lockb
+plan/
 
