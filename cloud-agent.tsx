@@ -415,6 +415,7 @@ function showHelp() {
   console.log("");
   console.log("Options:");
   console.log("  --plan <file>          Plan file to use as prompt (required for launch)");
+  console.log("                        Use \"-\" to read from stdin (supports heredoc syntax)");
   console.log("  --repo <url>           Repository URL (auto-detected if not provided)");
   console.log("  --ref <ref>            Git ref (branch/tag/commit) (auto-detected if not provided)");
   console.log("  --branch <name>        Target branch name");
@@ -426,14 +427,18 @@ function showHelp() {
   console.log("  --help, -h             Show this help message");
   console.log("");
   console.log("Examples:");
-  console.log("  cloud-agent launch --plan plan.md");
-  console.log("  cloud-agent launch --plan plan.md --repo https://github.com/org/repo --ref main");
-  console.log("  cloud-agent list");
-  console.log("  cloud-agent list --non-interactive  # Plain text output");
-  console.log("  cloud-agent status bc_abc123");
-  console.log("  cloud-agent status bc_abc123 --non-interactive  # Plain text output");
-  console.log("  cloud-agent  # Interactive agent list");
-  console.log("  cloud-agent --non-interactive  # Show help instead of interactive list");
+  console.log("  bun run cloud-agent.tsx launch --plan plan.md");
+  console.log("  bun run cloud-agent.tsx launch --plan plan.md --repo https://github.com/org/repo --ref main");
+  console.log("  bun run cloud-agent.tsx launch --plan - <<'EOF'");
+  console.log("  refactor(AgentList): extract status order constant");
+  console.log("  - Extract DEFAULT_STATUS_ORDER constant");
+  console.log("  EOF");
+  console.log("  bun run cloud-agent.tsx list");
+  console.log("  bun run cloud-agent.tsx list --non-interactive  # Plain text output");
+  console.log("  bun run cloud-agent.tsx status bc_abc123");
+  console.log("  bun run cloud-agent.tsx status bc_abc123 --non-interactive  # Plain text output");
+  console.log("  bun run cloud-agent.tsx  # Interactive agent list");
+  console.log("  bun run cloud-agent.tsx --non-interactive  # Show help instead of interactive list");
 }
 
 main().catch((error) => {
