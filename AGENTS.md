@@ -21,34 +21,43 @@ Creates PR automatically. Plan files should be organized in `plan/{feature}/{pla
 - `plan/bug-fixes/type-errors.md`
 - `plan/bug-fixes/add-error-handling.md`
 
-### Using Heredoc Syntax
+### Model Selection
 
-You can also pass plan content directly using heredoc syntax by using `-` to read from stdin:
+The CLI automatically selects the appropriate model based on plan content. Models:
+
+- `composer-1` (fast) - Simple tasks: bug fixes, small changes, typo corrections
+- `gpt-5.1-codex` (smart) - Complex tasks: refactors, architecture changes, multi-step tasks (>5 steps)
+
+Override with `--model`:
+
+```bash
+bun run cloud-agent.tsx launch --plan plan.md --model composer-1
+bun run cloud-agent.tsx launch --plan plan.md --model gpt-5.1-codex
+```
+
+### Heredoc Syntax
+
+Pass plan content directly via stdin:
 
 ```bash
 bun run cloud-agent.tsx launch --plan - <<'EOF'
-refactor(AgentList): extract status order constant and consolidate footer hints
+refactor(AgentList): extract status order constant
 
-- Extract DEFAULT_STATUS_ORDER constant to centralize status ordering
-- Add getStatusDisplayOrder function for dynamic status ordering
-- Consolidate footer hint text generation into single variable
-- Improve maintainability by removing hardcoded status arrays
+- Extract DEFAULT_STATUS_ORDER constant
+- Add getStatusDisplayOrder function
+- Consolidate footer hint text generation
 EOF
 ```
 
-This is useful for inline plan content without creating a separate file.
-
 ## When to Launch Tasks
 
-Tasks should only be kicked off if they are very parallelizable and do not have any dependencies.
-
-**Confidence in Launching:** When a plan is well-defined and ready, you should confidently launch the task yourself without waiting for explicit user confirmation. If the plan is clear, complete, and follows the proper structure, proceed with launching the cloud agent automatically.
+Only launch tasks that are parallelizable and have no dependencies. When a plan is well-defined and ready, launch automatically without waiting for confirmation.
 
 ## Troubleshooting
 
-**API Key Not Set:** `export CURSOR_API_KEY=your_key` ([get key](https://cursor.com/settings)). If API key is not found, try `source ~/.zshrc`
+**API Key:** `export CURSOR_API_KEY=your_key` ([get key](https://cursor.com/settings)). If not found, try `source ~/.zshrc`
 
-**Plan File Not Found:** Check path, use absolute path if needed, verify read permissions. When using heredoc syntax (`--plan -`), ensure stdin is properly piped (e.g., using `<<'EOF'`)
+**Plan File Not Found:** Check path, use absolute path if needed. For heredoc (`--plan -`), ensure stdin is piped with `<<'EOF'`
 
 **Git Not Detected:** Ensure in git repo with `origin` remote
 

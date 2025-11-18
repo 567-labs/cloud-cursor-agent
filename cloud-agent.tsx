@@ -13,6 +13,7 @@ import { AgentStatus } from "./src/components/AgentStatus.js";
 import { App } from "./src/components/App.js";
 import { detectRepoAndRef, isGitRepository } from "./src/utils/git.js";
 import { readPlanFile } from "./src/utils/file.js";
+import { selectModel, isValidModel, MODELS } from "./src/utils/model.js";
 
 interface CliArgs {
   command?: string;
@@ -240,10 +241,24 @@ async function main() {
           }
         }
 
-        // Only add model if provided
+        // Determine model to use
+        let selectedModel: string;
         if (args.model) {
-          request.model = args.model;
+          // Validate provided model
+          if (!isValidModel(args.model)) {
+            console.error(`Error: Invalid model "${args.model}"`);
+            console.error(`Supported models: ${Object.values(MODELS).join(", ")}`);
+            process.exit(1);
+          }
+          selectedModel = args.model;
+        } else {
+          // Automatically select model based on plan content
+          selectedModel = selectModel(planContent);
+          if (args.verbose) {
+            console.error(`Model: ${selectedModel} (auto-selected)`);
+          }
         }
+        request.model = selectedModel;
 
         const agent = await apiClient.launchAgent(request);
 
@@ -495,7 +510,8 @@ function showHelp() {
   console.log("  --ref <ref>            Git ref (branch/tag/commit) (auto-detected if not provided)");
   console.log("  --branch <name>        Target branch name");
   console.log("  --no-auto-pr           Disable automatic PR creation (PR creation is default)");
-  console.log("  --model <name>         Model to use (e.g., claude-4-sonnet)");
+  console.log("  --model <name>         Model to use (composer-1 or gpt-5.1-codex)");
+  console.log("                        If not provided, model is auto-selected based on plan");
   console.log("  --verbose, -v          Show verbose output");
   console.log("  --dir <path>           Working directory for git detection");
   console.log("  --non-interactive      Disable interactive mode (output plain text)");
