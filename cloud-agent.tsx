@@ -8,6 +8,7 @@
 import React from "react";
 import { render } from "ink";
 import { CloudAgentsApiClient, ApiError } from "./src/api/client.js";
+import type { Agent } from "./src/api/schemas.js";
 import { AgentList } from "./src/components/AgentList.js";
 import { AgentStatus } from "./src/components/AgentStatus.js";
 import { App } from "./src/components/App.js";
@@ -17,6 +18,7 @@ import { selectModel, isValidModel, MODELS } from "./src/utils/model.js";
 
 interface CliArgs {
   command?: string;
+  query?: string;
   plan?: string;
   repo?: string;
   ref?: string;
@@ -27,6 +29,7 @@ interface CliArgs {
   verbose?: boolean;
   dir?: string;
   agentId?: string;
+  field?: string;
   "non-interactive"?: boolean;
   help?: boolean;
 }
@@ -58,12 +61,16 @@ function parseArgs(): CliArgs {
       parsed.dir = args[++i];
     } else if (arg === "--non-interactive" || arg === "--no-interactive") {
       parsed["non-interactive"] = true;
+    } else if (arg === "--field" && i + 1 < args.length) {
+      parsed.field = args[++i];
     } else if (arg === "--help" || arg === "-h") {
       parsed.help = true;
     } else if (!arg.startsWith("--") && !parsed.command) {
       parsed.command = arg;
     } else if (!arg.startsWith("--") && parsed.command === "status" && !parsed.agentId) {
       parsed.agentId = arg;
+    } else if (!arg.startsWith("--") && parsed.command === "search" && !parsed.query) {
+      parsed.query = arg;
     }
   }
 
@@ -304,22 +311,13 @@ async function main() {
       // Non-interactive mode: output plain text
       try {
         const response = await apiClient.listAgents(100); // Get up to 100 agents
-        
+
         // Filter by repository if detected
         let agents = response.agents;
         if (repositoryFilter) {
-          const normalizeRepo = (url: string) => {
-            if (!url) return "";
-            return url
-              .replace(/^https?:\/\//, "") // Remove http:// or https:// prefix
-              .replace(/\.git$/, "")
-              .replace(/\/$/, "") // Remove trailing slash
-              .toLowerCase()
-              .trim();
-          };
-          const normalizedFilter = normalizeRepo(repositoryFilter);
-          agents = response.agents.filter((agent) => {
-            return normalizeRepo(agent.source.repository) === normalizedFilter;
+          const normalizedFilter = normalizeRepositoryUrl(repositoryFilter);
+          agents = agents.filter((agent) => {
+            return normalizeRepositoryUrl(agent.source.repository) === normalizedFilter;
           });
         }
 
@@ -334,30 +332,15 @@ async function main() {
           console.log("  cloud-agent launch --plan plan.md");
           return;
         }
-        
+
         if (repositoryFilter) {
           console.log(`Found ${agents.length} agent(s) for ${repositoryFilter}:\n`);
         } else {
           console.log(`Found ${agents.length} agent(s):\n`);
         }
-        
+
         for (const agent of agents) {
-          const statusSymbol = getStatusSymbol(agent.status);
-          console.log(agent.id);
-          console.log(`  Status:     ${statusSymbol} ${agent.status}`);
-          console.log(`  Name:       ${agent.name}`);
-          console.log(`  Repository: ${agent.source.repository}`);
-          if (agent.source.ref) {
-            console.log(`  Ref:        ${agent.source.ref}`);
-          }
-          if (agent.target.branchName) {
-            console.log(`  Branch:     ${agent.target.branchName}`);
-          }
-          console.log(`  URL:        ${agent.target.url}`);
-          if (agent.target.prUrl) {
-            console.log(`  PR:         ${agent.target.prUrl}`);
-          }
-          console.log("");
+          printAgentSummary(agent);
         }
         if (response.nextCursor && !repositoryFilter) {
           console.log("(More agents available - use interactive mode to paginate)");
@@ -372,7 +355,6 @@ async function main() {
       }
       return;
     }
-    
     // Interactive mode
     const { waitUntilExit } = render(
       <AgentList 
@@ -382,6 +364,74 @@ async function main() {
       />
     );
     await waitUntilExit();
+    return;
+  }
+
+  // Search command: cloud-agent search <query> [--field <field>]
+  if (args.command === "search") {
+    if (!args.query) {
+      console.error("Error: Search query is required");
+      console.error("Usage: cloud-agent search <query> [--field name|repository|status|id|branch]");
+      process.exit(1);
+    }
+
+    const validFields = new Set(["name", "repository", "status", "id", "branch"]);
+    let field: SearchField | undefined;
+    if (args.field) {
+      const normalizedField = args.field.toLowerCase();
+      if (!validFields.has(normalizedField)) {
+        console.error(
+          `Error: Invalid field "${args.field}". Valid fields are: name, repository, status, id, branch.`
+        );
+        process.exit(1);
+      }
+      field = normalizedField as SearchField;
+    }
+
+    // Detect repository for optional filtering
+    const workingDir = args.dir || process.cwd();
+    const gitInfo = await detectRepoAndRef(workingDir);
+    const repositoryFilter = gitInfo?.repository;
+
+    try {
+      const response = await apiClient.listAgents(100);
+      let agents = response.agents;
+
+      if (repositoryFilter) {
+        const normalizedFilter = normalizeRepositoryUrl(repositoryFilter);
+        agents = agents.filter((agent) => {
+          return normalizeRepositoryUrl(agent.source.repository) === normalizedFilter;
+        });
+      }
+
+      const matches = agents.filter((agent) => matchesSearchQuery(agent, args.query!, field));
+
+      if (matches.length === 0) {
+        if (repositoryFilter) {
+          console.log(`No agents found for ${repositoryFilter} matching "${args.query}".`);
+        } else {
+          console.log(`No agents found matching "${args.query}".`);
+        }
+        return;
+      }
+
+      if (repositoryFilter) {
+        console.log(`Found ${matches.length} matching agent(s) in ${repositoryFilter}:\n`);
+      } else {
+        console.log(`Found ${matches.length} matching agent(s):\n`);
+      }
+
+      for (const agent of matches) {
+        printAgentSummary(agent);
+      }
+    } catch (error) {
+      if (error instanceof Error) {
+        console.error(`Error: ${error.message}`);
+      } else {
+        console.error("Error: Failed to search agents");
+      }
+      process.exit(1);
+    }
     return;
   }
 
@@ -492,6 +542,56 @@ function getStatusSymbol(status: string): string {
   }
 }
 
+type SearchField = "name" | "repository" | "status" | "id" | "branch";
+
+function normalizeRepositoryUrl(url?: string): string {
+  if (!url) return "";
+  return url
+    .replace(/^https?:\/\//, "")
+    .replace(/\.git$/, "")
+    .replace(/\/$/, "")
+    .toLowerCase()
+    .trim();
+}
+
+function matchesSearchQuery(agent: Agent, query: string, field?: SearchField): boolean {
+  const normalizedQuery = query.toLowerCase();
+  const fields: Record<SearchField, string> = {
+    name: agent.name || "",
+    repository: agent.source?.repository || "",
+    status: agent.status || "",
+    id: agent.id || "",
+    branch: agent.target?.branchName || "",
+  };
+
+  if (field) {
+    return fields[field].toLowerCase().includes(normalizedQuery);
+  }
+
+  return Object.values(fields).some((value) =>
+    value.toLowerCase().includes(normalizedQuery)
+  );
+}
+
+function printAgentSummary(agent: Agent) {
+  const statusSymbol = getStatusSymbol(agent.status);
+  console.log(agent.id);
+  console.log(`  Status:     ${statusSymbol} ${agent.status}`);
+  console.log(`  Name:       ${agent.name}`);
+  console.log(`  Repository: ${agent.source.repository}`);
+  if (agent.source.ref) {
+    console.log(`  Ref:        ${agent.source.ref}`);
+  }
+  if (agent.target.branchName) {
+    console.log(`  Branch:     ${agent.target.branchName}`);
+  }
+  console.log(`  URL:        ${agent.target.url}`);
+  if (agent.target.prUrl) {
+    console.log(`  PR:         ${agent.target.prUrl}`);
+  }
+  console.log("");
+}
+
 function showHelp() {
   console.log("Cloud Agents CLI");
   console.log("");
@@ -501,6 +601,7 @@ function showHelp() {
   console.log("Commands:");
   console.log("  launch --plan <file>    Launch an agent from a plan file");
   console.log("  list                   List all agents");
+  console.log("  search <query>         Search agents (non-interactive)");
   console.log("  status <id>            Show agent status");
   console.log("");
   console.log("Options:");
@@ -514,6 +615,7 @@ function showHelp() {
   console.log("                        If not provided, model is auto-selected based on plan");
   console.log("  --verbose, -v          Show verbose output");
   console.log("  --dir <path>           Working directory for git detection");
+  console.log("  --field <field>        Field to search (name, repository, status, id, branch)");
   console.log("  --non-interactive      Disable interactive mode (output plain text)");
   console.log("  --help, -h             Show this help message");
   console.log("");
@@ -526,6 +628,9 @@ function showHelp() {
   console.log("  EOF");
   console.log("  bun run cloud-agent.tsx list");
   console.log("  bun run cloud-agent.tsx list --non-interactive  # Plain text output");
+  console.log('  bun run cloud-agent.tsx search "delete"');
+  console.log('  bun run cloud-agent.tsx search "fix login" --field name');
+  console.log('  bun run cloud-agent.tsx search "github.com/org/repo" --field repository');
   console.log("  bun run cloud-agent.tsx status bc_abc123");
   console.log("  bun run cloud-agent.tsx status bc_abc123 --non-interactive  # Plain text output");
   console.log("  bun run cloud-agent.tsx  # Interactive agent list");
