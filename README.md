@@ -32,7 +32,7 @@ You can obtain an API key from [Cursor Settings](https://cursor.com/settings).
 Launch an agent from a plan file:
 
 ```bash
-cloud-agent launch --plan <PLAN_FILE>
+bun run cloud-agent.tsx launch --plan <PLAN_FILE>
 ```
 
 This will:
@@ -44,7 +44,7 @@ This will:
 
 **Options:**
 
-- `--plan <file>` - Plan file to use as prompt (required)
+- `--plan <file>` - Plan file to use as prompt (required). Use `-` to read from stdin (supports heredoc syntax)
 - `--repo <url>` - Repository URL (auto-detected if not provided)
 - `--ref <ref>` - Git ref (branch/tag/commit) (auto-detected if not provided)
 - `--branch <name>` - Target branch name
@@ -57,10 +57,20 @@ This will:
 
 ```bash
 # Basic launch with auto-detection (PR created automatically)
-cloud-agent launch --plan <PLAN_FILE>
+bun run cloud-agent.tsx launch --plan <PLAN_FILE>
 
 # Disable PR creation
-cloud-agent launch --plan <PLAN_FILE> --no-auto-pr
+bun run cloud-agent.tsx launch --plan <PLAN_FILE> --no-auto-pr
+
+# Use heredoc syntax for inline plan content
+bun run cloud-agent.tsx launch --plan - <<'EOF'
+refactor(AgentList): extract status order constant and consolidate footer hints
+
+- Extract DEFAULT_STATUS_ORDER constant to centralize status ordering
+- Add getStatusDisplayOrder function for dynamic status ordering
+- Consolidate footer hint text generation into single variable
+- Improve maintainability by removing hardcoded status arrays
+EOF
 ```
 
 ### List Agents
@@ -69,10 +79,10 @@ View agents for the current repository (auto-detected from git):
 
 ```bash
 # Interactive mode (default) - filters by current repo
-cloud-agent list
+bun run cloud-agent.tsx list
 
 # Non-interactive mode (plain text output) - filters by current repo
-cloud-agent list --non-interactive
+bun run cloud-agent.tsx list --non-interactive
 ```
 
 **Note**: The list command automatically filters agents to show only those for the current repository (detected from git). If you're not in a git repository, it will show all agents.
@@ -90,17 +100,17 @@ View detailed status of a specific agent:
 
 ```bash
 # Interactive mode (default)
-cloud-agent status <agent-id>
+bun run cloud-agent.tsx status <agent-id>
 
 # Non-interactive mode (plain text output)
-cloud-agent status <agent-id> --non-interactive
+bun run cloud-agent.tsx status <agent-id> --non-interactive
 ```
 
 **Example:**
 
 ```bash
-cloud-agent status bc_abc123
-cloud-agent status bc_abc123 --non-interactive
+bun run cloud-agent.tsx status bc_abc123
+bun run cloud-agent.tsx status bc_abc123 --non-interactive
 ```
 
 **Interactive mode keyboard shortcuts:**
@@ -112,7 +122,7 @@ cloud-agent status bc_abc123 --non-interactive
 Launch the interactive agent list:
 
 ```bash
-cloud-agent
+bun run cloud-agent.tsx
 ```
 
 This opens the agent list directly, filtered to the current repository. You can:
@@ -133,13 +143,13 @@ Disable interactive mode for scripting and automation:
 
 ```bash
 # Show help instead of interactive list
-cloud-agent --non-interactive
+bun run cloud-agent.tsx --non-interactive
 
 # Plain text output for list command
-cloud-agent list --non-interactive
+bun run cloud-agent.tsx list --non-interactive
 
 # Plain text output for status command
-cloud-agent status bc_abc123 --non-interactive
+bun run cloud-agent.tsx status bc_abc123 --non-interactive
 ```
 
 Use `--non-interactive` (or `--no-interactive`) to get plain text output suitable for scripts and automation.
@@ -159,9 +169,9 @@ When AI agents (automated assistants, CI/CD systems, or other programmatic tools
 5. **No Blocking**: Interactive mode blocks waiting for user input. Non-interactive mode completes immediately and returns control.
 
 **Required for AI Agents:**
-- `cloud-agent list --non-interactive` - Always use this flag
-- `cloud-agent status <id> --non-interactive` - Always use this flag
-- `cloud-agent launch --plan <file>` - Already non-interactive by design, PR creation is default
+- `bun run cloud-agent.tsx list --non-interactive` - Always use this flag
+- `bun run cloud-agent.tsx status <id> --non-interactive` - Always use this flag
+- `bun run cloud-agent.tsx launch --plan <file>` - Already non-interactive by design, PR creation is default
 
 **What happens without `--non-interactive`:**
 - `list` and `status` commands will launch interactive UI and hang waiting for keyboard input
