@@ -629,9 +629,22 @@ export function AgentList({ apiClient, onBack, repositoryFilter }: AgentListProp
           setTimeout(() => setOpeningBrowser(null), 2000);
         }
       } else {
-        // Single Enter: Toggle expansion
+        // Single Enter: Toggle expansion and auto-open agent URL
+        const isExpanding = expandedAgentId !== selectedAgent.id;
         setExpandedAgentId(expandedAgentId === selectedAgent.id ? null : selectedAgent.id);
         setLastEnterPress(now);
+        
+        // Auto-open agent URL when expanding
+        if (isExpanding) {
+          try {
+            setOpeningBrowser(selectedAgent.id);
+            await openInBrowser(selectedAgent.target.url);
+            setTimeout(() => setOpeningBrowser(null), 1000);
+          } catch (err) {
+            // Silently handle errors to avoid disrupting the UI
+            setTimeout(() => setOpeningBrowser(null), 2000);
+          }
+        }
       }
     }
   });
@@ -693,12 +706,6 @@ export function AgentList({ apiClient, onBack, repositoryFilter }: AgentListProp
   const paginationStart = prevCursors.length * agentsPerView + 1;
   const paginationEnd = paginationStart + filteredAgents.length - 1;
   
-  // Safe width for bordered boxes - default to undefined if too narrow
-  const getBorderedBoxWidth = (baseWidth: number): number | undefined => {
-    const computed = clampWidth(baseWidth, 10);
-    return computed >= 10 ? computed : undefined;
-  };
-
   const paginationHintParts: string[] = [];
   if (prevCursors.length > 0) {
     paginationHintParts.push("← Prev");
@@ -885,28 +892,25 @@ export function AgentList({ apiClient, onBack, repositoryFilter }: AgentListProp
       </Box>
     );
     
-    // Wrap selected item in a box with border
-    if (isSelected) {
-      const borderedWidth = getBorderedBoxWidth(terminalWidth - 6);
-      return (
-        <Box key={agent.id} marginTop={0} marginBottom={0}>
-          <Box 
-            borderStyle="round" 
-            borderColor="cyan" 
-            paddingX={columnLayout.stacked ? 0 : 1} 
-            paddingY={isExpanded ? 1 : 0}
-            width={borderedWidth}
-          >
-            {agentContent}
-          </Box>
-        </Box>
-      );
-    }
+    const indicatorSymbol = isSelected ? ">" : " ";
+    const indicatorColor = isSelected ? "cyan" : "gray";
+    const indicatorBox = (
+      <Box marginRight={1}>
+        <Text color={indicatorColor}>{indicatorSymbol}</Text>
+      </Box>
+    );
     
     return (
       <Box key={agent.id} marginTop={0} marginBottom={0}>
-        <Box marginLeft={columnLayout.stacked ? 0 : 2}>
-          {agentContent}
+        <Box
+          flexDirection="row"
+          alignItems="flex-start"
+          marginLeft={columnLayout.stacked ? 0 : 2}
+        >
+          {indicatorBox}
+          <Box flexDirection="column" paddingY={isExpanded ? 1 : 0}>
+            {agentContent}
+          </Box>
         </Box>
       </Box>
     );
