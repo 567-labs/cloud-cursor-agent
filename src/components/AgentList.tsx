@@ -10,11 +10,13 @@ import { Spinner } from "./Spinner.js";
 import { openInBrowser } from "../utils/browser.js";
 import { getStatusDisplay, getRelativeTime } from "../utils/status.js";
 import type { Agent, AgentStatus } from "../api/schemas.js";
+import { fuzzyMatchAny } from "../utils/search.js";
 
 interface AgentListProps {
   apiClient: CloudAgentsApiClient;
   onBack: () => void;
   repositoryFilter?: string;
+  initialSearchQuery?: string;
 }
 
 type InputKey = {
@@ -23,6 +25,11 @@ type InputKey = {
   leftArrow?: boolean;
   rightArrow?: boolean;
   return?: boolean;
+  escape?: boolean;
+  backspace?: boolean;
+  delete?: boolean;
+  ctrl?: boolean;
+  meta?: boolean;
 };
 
 function truncate(str: string, maxLength: number): string {
@@ -135,7 +142,7 @@ function groupAgentsByRepository(agents: Agent[]): Map<string, Agent[]> {
 }
 
 
-export function AgentList({ apiClient, onBack, repositoryFilter }: AgentListProps) {
+export function AgentList({ apiClient, onBack, repositoryFilter, initialSearchQuery }: AgentListProps) {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -146,14 +153,19 @@ export function AgentList({ apiClient, onBack, repositoryFilter }: AgentListProp
   const [expandedAgentId, setExpandedAgentId] = useState<string | null>(null);
   const [lastEnterPress, setLastEnterPress] = useState<number>(0);
   const [openingBrowser, setOpeningBrowser] = useState<string | null>(null);
-  const [inFlightCursor, setInFlightCursor] = useState<string | undefined>(undefined);
+  const [inFlightCursor, setInFlightCursor] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<AgentStatus | null>(null);
   const [groupByRepository, setGroupByRepository] = useState(false);
   const [previousAgentStatuses, setPreviousAgentStatuses] = useState<Map<string, AgentStatus>>(new Map());
   const [statusTransitionAgents, setStatusTransitionAgents] = useState<Set<string>>(new Set());
   const [totalAgentsCount, setTotalAgentsCount] = useState<number | null>(null);
   const [openPrUrl, setOpenPrUrl] = useState(true); // Default to opening PR URL
+  const [searchQuery, setSearchQuery] = useState(initialSearchQuery?.trim() ?? "");
+  const [isSearchMode, setIsSearchMode] = useState(false);
+  const [hasFetchedAllAgents, setHasFetchedAllAgents] = useState(false);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const trimmedSearchQuery = searchQuery.trim();
+  const isSearchActive = trimmedSearchQuery.length > 0;
   
   // Real-time terminal dimensions using Ink hooks
   const { stdout } = useStdout();
@@ -256,11 +268,19 @@ export function AgentList({ apiClient, onBack, repositoryFilter }: AgentListProp
     }
   }, [availableContentWidth, layoutBreakpoint]);
   
-  // Filter agents by status if filter is active
+  // Filter agents by status and search query
   const filteredAgents = useMemo(() => {
-    if (!statusFilter) return agents;
-    return agents.filter(agent => agent.status === statusFilter);
-  }, [agents, statusFilter]);
+    let result = agents;
+    if (statusFilter) {
+      result = result.filter(agent => agent.status === statusFilter);
+    }
+    if (trimmedSearchQuery) {
+      result = result.filter((agent) =>
+        fuzzyMatchAny(trimmedSearchQuery, [agent.name, agent.summary ?? ""]),
+      );
+    }
+    return result;
+  }, [agents, statusFilter, trimmedSearchQuery]);
   
   // Group agents based on current grouping mode
   const groupedAgents = useMemo(() => {
@@ -305,109 +325,128 @@ export function AgentList({ apiClient, onBack, repositoryFilter }: AgentListProp
   }, [groupedAgents, groupByRepository, statusDisplayOrder]);
   
   const FETCH_MULTIPLIER = 2;
+  const SEARCH_FETCH_SIZE = 100;
+  const MAX_SEARCH_RESULTS = 2000; // Safeguard to prevent unbounded fetches
+  const MAX_SEARCH_ITERATIONS = 200;
 
-  const loadAgents = useCallback(async (cursor?: string, perPage = agentsPerView) => {
-    // Prevent overlapping fetches
-    if (inFlightCursor !== undefined && inFlightCursor === cursor) {
-      return;
-    }
-    
-    try {
-      setInFlightCursor(cursor);
-      setLoading(true);
-      setError(null);
-      
-      // Precompute fetch size to avoid empty slots when gaining vertical space
-      const fetchSize = Math.ceil(perPage * FETCH_MULTIPLIER);
-      
-      // Keep fetching until we have enough agents or run out
-      let allAgents: Agent[] = [];
-      let currentCursor = cursor;
-      let hasMore = true;
-      
-      while (allAgents.length < perPage && hasMore) {
-        const response = await apiClient.listAgents(fetchSize, currentCursor);
-        
-        // Filter by repository if filter is provided
-        let filteredAgents = response.agents;
-        if (repositoryFilter) {
-          const normalizedFilter = normalizeRepositoryUrl(repositoryFilter);
-          filteredAgents = response.agents.filter((agent) => {
-            const agentRepo = normalizeRepositoryUrl(agent.source.repository);
-            return agentRepo === normalizedFilter;
-          });
-        }
-        
-        allAgents = [...allAgents, ...filteredAgents];
-        currentCursor = response.nextCursor;
-        // Continue fetching as long as there are more pages from the API
-        // Don't stop just because current page has no matches when filtering
-        hasMore = !!response.nextCursor && response.agents.length > 0;
-        
-        // If we have enough agents or no more pages, stop
-        if (allAgents.length >= perPage || !hasMore) {
-          break;
-        }
+  const loadAgents = useCallback(
+    async (cursor?: string, perPage = agentsPerView, options?: { fetchAll?: boolean }) => {
+      const shouldFetchAll = options?.fetchAll ?? false;
+      const fetchKey = `${shouldFetchAll ? "all" : "page"}:${cursor ?? "root"}:${perPage}`;
+
+      if (inFlightCursor && inFlightCursor === fetchKey) {
+        return;
       }
       
-      // Take only the first perPage agents
-      const pageAgents = allAgents.slice(0, perPage);
-      
-      // Track status transitions
-      setAgents((prevAgents) => {
-        const prevStatusMap = new Map(prevAgents.map(a => [a.id, a.status]));
-        setPreviousAgentStatuses(prevStatusMap);
+      try {
+        setInFlightCursor(fetchKey);
+        setLoading(true);
+        setError(null);
         
-        // Find agents whose status changed
-        const transitionSet = new Set<string>();
-        pageAgents.forEach(agent => {
-          const prevStatus = prevStatusMap.get(agent.id);
-          if (prevStatus && prevStatus !== agent.status) {
-            transitionSet.add(agent.id);
+        const fetchSize = shouldFetchAll
+          ? SEARCH_FETCH_SIZE
+          : Math.ceil(perPage * FETCH_MULTIPLIER);
+        
+        let allAgents: Agent[] = [];
+        let currentCursor = cursor;
+        let hasMore = true;
+        let iterationCount = 0;
+        
+        while (hasMore) {
+          const response = await apiClient.listAgents(fetchSize, currentCursor);
+          
+          // Filter by repository if filter is provided
+          let filteredAgents = response.agents;
+          if (repositoryFilter) {
+            const normalizedFilter = normalizeRepositoryUrl(repositoryFilter);
+            filteredAgents = response.agents.filter((agent) => {
+              const agentRepo = normalizeRepositoryUrl(agent.source.repository);
+              return agentRepo === normalizedFilter;
+            });
           }
+          
+          allAgents = [...allAgents, ...filteredAgents];
+          currentCursor = response.nextCursor;
+          hasMore = !!response.nextCursor && response.agents.length > 0;
+          iterationCount += 1;
+          
+          if (!shouldFetchAll && (allAgents.length >= perPage || !hasMore)) {
+            break;
+          }
+          
+          if (shouldFetchAll) {
+            if (!hasMore) {
+              break;
+            }
+            if (allAgents.length >= MAX_SEARCH_RESULTS) {
+              hasMore = false;
+              break;
+            }
+            if (iterationCount >= MAX_SEARCH_ITERATIONS) {
+              hasMore = false;
+              break;
+            }
+          }
+        }
+        
+        const pageAgents = shouldFetchAll ? allAgents : allAgents.slice(0, perPage);
+        
+        // Track status transitions
+        setAgents((prevAgents) => {
+          const prevStatusMap = new Map(prevAgents.map(a => [a.id, a.status]));
+          setPreviousAgentStatuses(prevStatusMap);
+          
+          const transitionSet = new Set<string>();
+          pageAgents.forEach(agent => {
+            const prevStatus = prevStatusMap.get(agent.id);
+            if (prevStatus && prevStatus !== agent.status) {
+              transitionSet.add(agent.id);
+            }
+          });
+          
+          if (transitionSet.size > 0) {
+            setStatusTransitionAgents(transitionSet);
+            setTimeout(() => {
+              setStatusTransitionAgents(prev => {
+                const updated = new Set(prev);
+                transitionSet.forEach(id => updated.delete(id));
+                return updated;
+              });
+            }, 3000);
+          }
+          
+          return pageAgents;
         });
         
-        if (transitionSet.size > 0) {
-          setStatusTransitionAgents(transitionSet);
-          // Clear transition indicators after 3 seconds
-          setTimeout(() => {
-            setStatusTransitionAgents(prev => {
-              const updated = new Set(prev);
-              transitionSet.forEach(id => updated.delete(id));
-              return updated;
-            });
-          }, 3000);
+        if (shouldFetchAll) {
+          setNextCursor(undefined);
+          setPrevCursors([]);
+          setCurrentPageCursor(undefined);
+        } else if (hasMore && (allAgents.length > perPage || currentCursor)) {
+          setNextCursor(currentCursor);
+          setCurrentPageCursor(cursor);
+        } else {
+          setNextCursor(undefined);
+          setCurrentPageCursor(cursor);
         }
         
-        return pageAgents;
-      });
-      
-      // Set next cursor if we have more agents or more pages available
-      if (hasMore && (allAgents.length > perPage || currentCursor)) {
-        setNextCursor(currentCursor);
-      } else {
-        setNextCursor(undefined);
+        setTotalAgentsCount(pageAgents.length);
+        setHasFetchedAllAgents(shouldFetchAll);
+      } catch (err) {
+        if (err instanceof ApiError) {
+          setError(err.message);
+        } else if (err instanceof Error) {
+          setError(err.message);
+        } else {
+          setError("Failed to load agents");
+        }
+      } finally {
+        setLoading(false);
+        setInFlightCursor(null);
       }
-      
-      // Track the cursor used to load this page
-      setCurrentPageCursor(cursor);
-      
-      // Update total count estimate (we don't have exact count, so use current page size)
-      // This is an approximation - the API doesn't provide total count
-      setTotalAgentsCount(pageAgents.length);
-    } catch (err) {
-      if (err instanceof ApiError) {
-        setError(err.message);
-      } else if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError("Failed to load agents");
-      }
-    } finally {
-      setLoading(false);
-      setInFlightCursor(undefined);
-    }
-  }, [apiClient, repositoryFilter, agentsPerView, inFlightCursor]);
+    },
+    [apiClient, repositoryFilter, agentsPerView, inFlightCursor],
+  );
 
   // Initialize lastAgentsPerViewRef
   useEffect(() => {
@@ -416,44 +455,54 @@ export function AgentList({ apiClient, onBack, repositoryFilter }: AgentListProp
     }
   }, [agentsPerView]);
   
-  // Initial load
+  // Initial load (non-search mode)
   useEffect(() => {
+    if (isSearchActive) {
+      return;
+    }
     loadAgents(undefined, agentsPerView);
     lastAgentsPerViewRef.current = agentsPerView;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [apiClient, repositoryFilter]);
+  }, [loadAgents, agentsPerView, isSearchActive]);
+
+  // Fetch the full agent list when search is active and not yet hydrated
+  useEffect(() => {
+    if (!isSearchActive || hasFetchedAllAgents) {
+      return;
+    }
+    loadAgents(undefined, Math.max(agentsPerView, SEARCH_FETCH_SIZE), { fetchAll: true });
+  }, [isSearchActive, hasFetchedAllAgents, loadAgents, agentsPerView]);
   
   // Resize-aware pagination: reload current page when agentsPerView changes
   useEffect(() => {
-    // Skip if this is the initial load or if agentsPerView hasn't changed materially
+    if (isSearchActive) {
+      lastAgentsPerViewRef.current = agentsPerView;
+      return;
+    }
+    
     if (Math.abs(agentsPerView - lastAgentsPerViewRef.current) <= 1) {
       return;
     }
     
-    // Debounce resize events to avoid spamming API while user drags window
     if (resizeTimeoutRef.current) {
       clearTimeout(resizeTimeoutRef.current);
     }
     
     resizeTimeoutRef.current = setTimeout(() => {
-      // Reload current page with new page size
       loadAgents(currentPageCursor, agentsPerView);
       
-      // Clamp selectedIndex after reload (will be handled in a separate effect)
-      // Clear prevCursors if new page size is larger than cached pages can satisfy
       if (agentsPerView > lastAgentsPerViewRef.current && prevCursors.length > 0) {
         setPrevCursors([]);
       }
       
       lastAgentsPerViewRef.current = agentsPerView;
-    }, 300); // 300ms debounce
+    }, 300);
     
     return () => {
       if (resizeTimeoutRef.current) {
         clearTimeout(resizeTimeoutRef.current);
       }
     };
-  }, [agentsPerView, currentPageCursor, prevCursors, loadAgents]);
+  }, [agentsPerView, currentPageCursor, prevCursors, loadAgents, isSearchActive]);
   
   // Clamp selectedIndex when filtered agents list changes
   useEffect(() => {
@@ -542,6 +591,47 @@ export function AgentList({ apiClient, onBack, repositoryFilter }: AgentListProp
   }, [agents, apiClient]);
 
   useInput(async (input: string, key: InputKey) => {
+    if (isSearchMode) {
+      if (key.escape) {
+        setIsSearchMode(false);
+        return;
+      }
+      if (key.return) {
+        setIsSearchMode(false);
+        return;
+      }
+      if ((key.backspace || key.delete || input === "\u007f") && searchQuery.length > 0) {
+        setSearchQuery((prev) => prev.slice(0, -1));
+        setSelectedIndex(0);
+        setExpandedAgentId(null);
+        return;
+      }
+      if (
+        input &&
+        input.length === 1 &&
+        !key.ctrl &&
+        !key.meta
+      ) {
+        setSearchQuery((prev) => prev + input);
+        setSelectedIndex(0);
+        setExpandedAgentId(null);
+      }
+      return;
+    }
+    
+    if (input === "/") {
+      setIsSearchMode(true);
+      return;
+    }
+    
+    if (key.escape && isSearchActive) {
+      setSearchQuery("");
+      setIsSearchMode(false);
+      setSelectedIndex(0);
+      setExpandedAgentId(null);
+      return;
+    }
+    
     if (input === "q") {
       onBack();
     } else if (input === "r") {
@@ -549,7 +639,11 @@ export function AgentList({ apiClient, onBack, repositoryFilter }: AgentListProp
       setExpandedAgentId(null);
       setPrevCursors([]);
       setCurrentPageCursor(undefined);
-      loadAgents(undefined, agentsPerView);
+      if (isSearchActive) {
+        loadAgents(undefined, Math.max(agentsPerView, SEARCH_FETCH_SIZE), { fetchAll: true });
+      } else {
+        loadAgents(undefined, agentsPerView);
+      }
       setSelectedIndex(0);
     } else if (input === "1") {
       // Filter by RUNNING
@@ -589,7 +683,7 @@ export function AgentList({ apiClient, onBack, repositoryFilter }: AgentListProp
     } else if (input === "t" || input === "T") {
       // Toggle between PR and Agent URL
       setOpenPrUrl(!openPrUrl);
-    } else if (key.leftArrow && prevCursors.length > 0) {
+    } else if (key.leftArrow && prevCursors.length > 0 && !isSearchActive) {
       // Go to previous page
       const newPrevCursors = [...prevCursors];
       const prevCursorToUse = newPrevCursors.pop(); // Get and remove the last cursor
@@ -597,7 +691,7 @@ export function AgentList({ apiClient, onBack, repositoryFilter }: AgentListProp
       setExpandedAgentId(null);
       loadAgents(prevCursorToUse, agentsPerView);
       setSelectedIndex(0);
-    } else if (key.rightArrow && nextCursor) {
+    } else if (key.rightArrow && nextCursor && !isSearchActive) {
       // Go to next page
       // Save current page cursor to prev stack before loading next page
       if (currentPageCursor !== undefined) {
@@ -674,63 +768,93 @@ export function AgentList({ apiClient, onBack, repositoryFilter }: AgentListProp
     );
   }
 
-  if (filteredAgents.length === 0) {
-    return (
-      <Box padding={1} flexDirection="column">
-        <Box marginBottom={1}>
-          <Text color="gray">
-            {statusFilter 
-              ? `No agents found with status: ${getStatusDisplay(statusFilter).label}`
-              : "No agents found yet"}
-          </Text>
-        </Box>
-        {!statusFilter && (
-          <>
-            <Box marginBottom={1}>
-              <Text color="gray">To create your first cloud agent, run:</Text>
-            </Box>
-            <Box marginLeft={2}>
-              <Text color="cyan">cloud-agent launch --plan plan.md</Text>
-            </Box>
-          </>
-        )}
-        {statusFilter && (
-          <Box marginTop={1}>
-            <Text color="gray">Press 'a' to show all agents</Text>
+    if (filteredAgents.length === 0) {
+      const noAgentMessage = (() => {
+        if (isSearchActive && statusFilter) {
+          return `No agents match "${trimmedSearchQuery}" with status ${getStatusDisplay(statusFilter).label}.`;
+        }
+        if (isSearchActive) {
+          return `No agents match "${trimmedSearchQuery}".`;
+        }
+        if (statusFilter) {
+          return `No agents found with status: ${getStatusDisplay(statusFilter).label}`;
+        }
+        return "No agents found yet";
+      })();
+      
+      return (
+        <Box padding={1} flexDirection="column">
+          <Box marginBottom={1}>
+            <Text color="gray">{noAgentMessage}</Text>
           </Box>
-        )}
-        <Box marginTop={1}>
-          <Text color="gray">Press 'q' to go back</Text>
+          {isSearchActive ? (
+            <Box marginBottom={1}>
+              <Text color="gray">Press 'Esc' to clear search or keep typing.</Text>
+            </Box>
+          ) : (
+            !statusFilter && (
+              <>
+                <Box marginBottom={1}>
+                  <Text color="gray">To create your first cloud agent, run:</Text>
+                </Box>
+                <Box marginLeft={2}>
+                  <Text color="cyan">cloud-agent launch --plan plan.md</Text>
+                </Box>
+              </>
+            )
+          )}
+          {statusFilter && !isSearchActive && (
+            <Box marginTop={1}>
+              <Text color="gray">Press 'a' to show all agents</Text>
+            </Box>
+          )}
+          {!isSearchActive && (
+            <Box marginTop={1}>
+              <Text color="gray">Press '/' to search</Text>
+            </Box>
+          )}
+          <Box marginTop={1}>
+            <Text color="gray">Press 'q' to go back</Text>
+          </Box>
         </Box>
-      </Box>
-    );
-  }
+      );
+    }
   
-  const selectedAgent = flattenedAgents[selectedIndex];
-  
-  // Calculate pagination range
-  const paginationStart = prevCursors.length * agentsPerView + 1;
-  const paginationEnd = paginationStart + filteredAgents.length - 1;
-  
-  const paginationHintParts: string[] = [];
-  if (prevCursors.length > 0) {
-    paginationHintParts.push("← Prev");
-  }
-  if (nextCursor) {
-    paginationHintParts.push("→ Next");
-  }
-  const footerHintParts = [
-    ...paginationHintParts,
-    "↑↓/jk Navigate",
-    "Enter Expand",
-    `Enter twice Open ${openPrUrl ? "PR" : "Agent"}`,
-    "q Back",
-    "r Refresh",
-    "Filters 1-5/a",
-    "g Group",
-    "t PR/Agent",
-  ];
-  const footerHintText = footerHintParts.join(" • ");
+    const selectedAgent = flattenedAgents[selectedIndex];
+    const searchBarVisible = isSearchMode || isSearchActive;
+    const searchDisplayText = searchQuery.length > 0 ? searchQuery : "Type to search";
+    
+    // Calculate pagination range
+    const paginationStart = isSearchActive
+      ? filteredAgents.length > 0 ? 1 : 0
+      : prevCursors.length * agentsPerView + 1;
+    const paginationEnd = isSearchActive
+      ? filteredAgents.length
+      : paginationStart + filteredAgents.length - 1;
+    
+    const paginationHintParts: string[] = [];
+    if (!isSearchActive && prevCursors.length > 0) {
+      paginationHintParts.push("← Prev");
+    }
+    if (!isSearchActive && nextCursor) {
+      paginationHintParts.push("→ Next");
+    }
+    const footerHintParts = [
+      ...paginationHintParts,
+      "↑↓/jk Navigate",
+      "Enter Expand",
+      `Enter twice Open ${openPrUrl ? "PR" : "Agent"}`,
+      "q Back",
+      "r Refresh",
+      "Filters 1-5/a",
+      "g Group",
+      "t PR/Agent",
+      "/ Search",
+    ];
+    if (searchBarVisible) {
+      footerHintParts.push("Esc Clear search");
+    }
+    const footerHintText = footerHintParts.join(" • ");
   
   // Helper function to render an agent item
   const renderAgentItem = (
@@ -945,10 +1069,19 @@ export function AgentList({ apiClient, onBack, repositoryFilter }: AgentListProp
             <Spinner text="Refreshing..." />
           </Box>
         )}
-      </Box>
-      <Box marginBottom={1}>
-        <Text color="gray">{getSeparator(separatorWidth)}</Text>
-      </Box>
+        </Box>
+        <Box marginBottom={1}>
+          <Text color="gray">{getSeparator(separatorWidth)}</Text>
+        </Box>
+        {searchBarVisible && (
+          <Box marginBottom={1} flexDirection="row">
+            <Text color="gray">/ Search: </Text>
+            <Text color={isSearchMode ? "cyan" : "gray"}>
+              {searchDisplayText}
+              {isSearchMode ? "▌" : ""}
+            </Text>
+          </Box>
+        )}
 
       {/* Grouped sections */}
       {groupByRepository ? (
@@ -1028,10 +1161,15 @@ export function AgentList({ apiClient, onBack, repositoryFilter }: AgentListProp
       <Box marginTop={2} flexDirection="column">
         <Box marginBottom={1}>
           <Text color="gray" dimColor>
-            {filteredAgents.length > 0 
-              ? `Showing ${paginationStart}-${paginationEnd} of ${filteredAgents.length} ${filteredAgents.length === 1 ? 'agent' : 'agents'} • ${getLayoutLabel(layoutBreakpoint)}`
-              : `No agents • ${getLayoutLabel(layoutBreakpoint)}`
-            }
+            {(() => {
+              if (filteredAgents.length === 0) {
+                return `No agents • ${getLayoutLabel(layoutBreakpoint)}`;
+              }
+              if (isSearchActive) {
+                return `Showing ${filteredAgents.length} ${filteredAgents.length === 1 ? "result" : "results"} • Search`;
+              }
+              return `Showing ${paginationStart}-${paginationEnd} of ${filteredAgents.length} ${filteredAgents.length === 1 ? "agent" : "agents"} • ${getLayoutLabel(layoutBreakpoint)}`;
+            })()}
           </Text>
         </Box>
         <Box>
