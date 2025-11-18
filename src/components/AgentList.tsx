@@ -131,6 +131,7 @@ export function AgentList({ apiClient, onBack, repositoryFilter }: AgentListProp
   const [previousAgentStatuses, setPreviousAgentStatuses] = useState<Map<string, AgentStatus>>(new Map());
   const [statusTransitionAgents, setStatusTransitionAgents] = useState<Set<string>>(new Set());
   const [totalAgentsCount, setTotalAgentsCount] = useState<number | null>(null);
+  const [openPrUrl, setOpenPrUrl] = useState(true); // Default to opening PR URL
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   
   // Real-time terminal dimensions using Ink hooks
@@ -552,6 +553,9 @@ export function AgentList({ apiClient, onBack, repositoryFilter }: AgentListProp
       setGroupByRepository(!groupByRepository);
       setSelectedIndex(0);
       setExpandedAgentId(null);
+    } else if (input === "t" || input === "T") {
+      // Toggle between PR and Agent URL
+      setOpenPrUrl(!openPrUrl);
     } else if (key.leftArrow && prevCursors.length > 0) {
       // Go to previous page
       const newPrevCursors = [...prevCursors];
@@ -585,10 +589,13 @@ export function AgentList({ apiClient, onBack, repositoryFilter }: AgentListProp
       const timeSinceLastEnter = now - lastEnterPress;
       
       if (expandedAgentId === selectedAgent.id && timeSinceLastEnter < 500) {
-        // Double Enter: Open in browser
+        // Double Enter: Open in browser (PR URL by default, fallback to Agent URL)
         try {
           setOpeningBrowser(selectedAgent.id);
-          await openInBrowser(selectedAgent.target.url);
+          const urlToOpen = openPrUrl && selectedAgent.target.prUrl 
+            ? selectedAgent.target.prUrl 
+            : selectedAgent.target.url;
+          await openInBrowser(urlToOpen);
           setTimeout(() => setOpeningBrowser(null), 1000);
         } catch (err) {
           setError(err instanceof Error ? err.message : "Failed to open browser");
@@ -653,7 +660,6 @@ export function AgentList({ apiClient, onBack, repositoryFilter }: AgentListProp
     );
   }
   
-  // Get selected agent from flattened list
   const selectedAgent = flattenedAgents[selectedIndex];
   
   // Calculate pagination range
@@ -982,12 +988,12 @@ export function AgentList({ apiClient, onBack, repositoryFilter }: AgentListProp
         </Box>
         <Box marginTop={0} marginBottom={0}>
           <Text color="gray" dimColor>
-            ↑↓ Navigate • Enter Expand • Enter twice Open • q Back • r Refresh
+            ↑↓ Navigate • Enter Expand • Enter twice Open {openPrUrl ? "PR" : "Agent"} • q Back • r Refresh
           </Text>
         </Box>
         <Box marginTop={0} marginBottom={0}>
           <Text color="gray" dimColor>
-            Status filters: 1=RUNNING 2=CREATING 3=FINISHED 4=FAILED 5=CANCELLED a=All • g=Toggle grouping
+            Status filters: 1=RUNNING 2=CREATING 3=FINISHED 4=FAILED 5=CANCELLED a=All • g=Toggle grouping • t=Toggle PR/Agent
           </Text>
         </Box>
       </Box>
