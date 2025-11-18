@@ -12,6 +12,15 @@ import { clampWidth } from "../utils/formatting.js";
 import type { AgentConversation, Agent } from "../api/schemas.js";
 import { getStatusDisplay } from "../utils/status.js";
 
+/**
+ * Extract PR number from GitHub PR URL
+ * e.g., "https://github.com/owner/repo/pull/123" -> "123"
+ */
+function extractPrNumber(prUrl: string): string | null {
+  const match = prUrl.match(/\/pull\/(\d+)/);
+  return match ? match[1] : null;
+}
+
 interface ConversationProps {
   apiClient: CloudAgentsApiClient;
   agentId: string;
@@ -203,11 +212,8 @@ export function Conversation({
             setLoading(false);
           });
       } else if (input === "f" || input === "F") {
-        // Enter follow-up mode (only if agent is RUNNING or CREATING)
-        if (
-          agent &&
-          (agent.status === "RUNNING" || agent.status === "CREATING")
-        ) {
+        // Enter follow-up mode
+        if (agent) {
           setIsFollowupMode(true);
           setFollowupText("");
         }
@@ -270,6 +276,16 @@ export function Conversation({
         </Text>
       </Box>
       <Box marginBottom={1}>
+        <Text color="gray" dimColor>
+          Review: cloud-agent conversation {agent.id}
+        </Text>
+      </Box>
+      <Box marginBottom={1}>
+        <Text color="gray" dimColor>
+          Follow-up: cloud-agent followup {agent.id} --messages "your message"
+        </Text>
+      </Box>
+      <Box marginBottom={1}>
         <Text>
           <Text color="gray" dimColor>
             Status:{" "}
@@ -279,6 +295,34 @@ export function Conversation({
           </Text>
         </Text>
       </Box>
+      {agent.target.branchName && (
+        <Box marginBottom={1}>
+          <Text>
+            <Text color="gray" dimColor>
+              Branch:{" "}
+            </Text>
+            <Text color="cyan">{agent.target.branchName}</Text>
+          </Text>
+        </Box>
+      )}
+      {agent.target.prUrl && (
+        <Box marginBottom={1}>
+          <Text>
+            <Text color="gray" dimColor>
+              Pull Request:{" "}
+            </Text>
+            <Text color="cyan">{agent.target.prUrl}</Text>
+          </Text>
+        </Box>
+      )}
+      {agent.target.prUrl && (
+        <Box marginBottom={1}>
+          <Text color="gray" dimColor>
+            Run: gh pr checkout{" "}
+            {extractPrNumber(agent.target.prUrl) || "PR_NUMBER"}
+          </Text>
+        </Box>
+      )}
 
       <Box marginBottom={1}>
         <Text color="gray">{"─".repeat(separatorWidth)}</Text>
@@ -314,10 +358,7 @@ export function Conversation({
       {!isFollowupMode && (
         <Box marginTop={1}>
           <Text color="gray" dimColor>
-            Press 'q' to go back • 'r' to refresh
-            {agent &&
-              (agent.status === "RUNNING" || agent.status === "CREATING") &&
-              " • 'f' to send follow-up"}
+            Press 'q' to go back • 'r' to refresh • 'f' to send follow-up
           </Text>
         </Box>
       )}

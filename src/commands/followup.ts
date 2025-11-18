@@ -69,24 +69,14 @@ export async function executeFollowup(
     console.log(`Agent ID: ${agent.id}`);
     console.log("");
 
-    if (
-      agent.status === "FINISHED" ||
-      agent.status === "FAILED" ||
-      agent.status === "CANCELLED"
-    ) {
-      console.error(
-        `Error: Cannot add follow-up to agent that is ${agent.status.toLowerCase()}.`
-      );
-      process.exit(1);
-      return;
-    }
-
     // Add follow-up
     await apiClient.addFollowup(agentId, { text: promptText });
 
     console.log(
       `Follow-up instruction added to agent ${agentId} (Status: ${agent.status})`
     );
+    console.log("");
+    console.log(`View conversation: cloud-agent conversation ${agentId}`);
   } catch (error) {
     if (error instanceof ApiError) {
       console.error(`Error: ${error.message}`);
