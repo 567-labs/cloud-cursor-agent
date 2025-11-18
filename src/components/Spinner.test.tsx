@@ -1,7 +1,6 @@
-import { test, expect, describe, beforeEach, vi } from "bun:test";
+import { test, expect, describe, beforeEach, afterEach, vi } from "bun:test";
 import { render, screen, waitFor } from "@testing-library/react";
 import { Spinner } from "./Spinner.js";
-import { vi } from "bun:test";
 
 // Mock Ink components
 vi.mock("ink", () => import("../test/mocks/ink.js"));
