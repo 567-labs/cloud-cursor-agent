@@ -14,6 +14,16 @@ A compelling use case is identifying multiple files that need independent change
 2.  **Launch** parallel "sub-agents" for each task using this CLI.
 3.  **Receive** smaller, focused PRs that are easier to review.
 
+## Screenshots
+
+### Interactive Menu
+
+![Interactive Menu](images/cli-interactive-menu.png)
+
+### Agent List
+
+![Agent List](images/cli-agent-list.png)
+
 ## Installing as a CLI Tool
 
 Install this tool globally so you can run `cloud-agent` from any directory:
@@ -72,6 +82,8 @@ You can obtain an API key from [Cursor Settings](https://cursor.com/settings).
 ## Usage
 
 After installation, you can use the `cloud-agent` command directly. If you built from source, use `./cli.js` or `bun run cloud-agent.tsx` instead.
+
+![Interactive Menu](images/cli-interactive-menu.png)
 
 ### Quick Launch (Primary Workflow)
 
@@ -148,6 +160,8 @@ bun run cloud-agent.tsx list --non-interactive
 # Search agents by name or summary (non-interactive mode only)
 bun run cloud-agent.tsx list --non-interactive --search "refactor"
 ```
+
+![Agent List](images/cli-agent-list.png)
 
 **Note**: The list command automatically filters agents to show only those for the current repository (detected from git). If you're not in a git repository, it will show all agents.
 
