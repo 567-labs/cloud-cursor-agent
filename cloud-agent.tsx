@@ -21,6 +21,7 @@ interface CliArgs {
   ref?: string;
   branch?: string;
   "auto-pr"?: boolean;
+  "no-auto-pr"?: boolean;
   model?: string;
   verbose?: boolean;
   dir?: string;
@@ -46,6 +47,8 @@ function parseArgs(): CliArgs {
       parsed.branch = args[++i];
     } else if (arg === "--auto-pr") {
       parsed["auto-pr"] = true;
+    } else if (arg === "--no-auto-pr") {
+      parsed["no-auto-pr"] = true;
     } else if (arg === "--model" && i + 1 < args.length) {
       parsed.model = args[++i];
     } else if (arg === "--verbose" || arg === "-v") {
@@ -158,13 +161,16 @@ async function main() {
           },
         };
 
-        // Only add target if we have target options
-        if (args.branch || args["auto-pr"]) {
+        // Set up target options
+        // auto-pr is default unless --no-auto-pr is specified
+        const shouldCreatePr = !args["no-auto-pr"];
+        
+        if (args.branch || shouldCreatePr) {
           request.target = {};
           if (args.branch) {
             request.target.branchName = args.branch;
           }
-          if (args["auto-pr"]) {
+          if (shouldCreatePr) {
             request.target.autoCreatePr = true;
           }
         }
@@ -222,7 +228,15 @@ async function main() {
         // Filter by repository if detected
         let agents = response.agents;
         if (repositoryFilter) {
-          const normalizeRepo = (url: string) => url.replace(/\.git$/, "").toLowerCase().trim();
+          const normalizeRepo = (url: string) => {
+            if (!url) return "";
+            return url
+              .replace(/^https?:\/\//, "") // Remove http:// or https:// prefix
+              .replace(/\.git$/, "")
+              .replace(/\/$/, "") // Remove trailing slash
+              .toLowerCase()
+              .trim();
+          };
           const normalizedFilter = normalizeRepo(repositoryFilter);
           agents = response.agents.filter((agent) => {
             return normalizeRepo(agent.source.repository) === normalizedFilter;
@@ -404,7 +418,7 @@ function showHelp() {
   console.log("  --repo <url>           Repository URL (auto-detected if not provided)");
   console.log("  --ref <ref>            Git ref (branch/tag/commit) (auto-detected if not provided)");
   console.log("  --branch <name>        Target branch name");
-  console.log("  --auto-pr              Automatically create PR when agent completes");
+  console.log("  --no-auto-pr           Disable automatic PR creation (PR creation is default)");
   console.log("  --model <name>         Model to use (e.g., claude-4-sonnet)");
   console.log("  --verbose, -v          Show verbose output");
   console.log("  --dir <path>           Working directory for git detection");

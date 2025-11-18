@@ -46,7 +46,7 @@ This will:
 - `--repo <url>` - Repository URL (auto-detected if not provided)
 - `--ref <ref>` - Git ref (branch/tag/commit) (auto-detected if not provided)
 - `--branch <name>` - Target branch name
-- `--auto-pr` - Automatically create PR when agent completes
+- `--no-auto-pr` - Disable automatic PR creation (PR creation is default)
 - `--model <name>` - Model to use (e.g., claude-4-sonnet)
 - `--verbose, -v` - Show verbose output
 - `--dir <path>` - Working directory for git detection
@@ -54,14 +54,14 @@ This will:
 **Examples:**
 
 ```bash
-# Basic launch with auto-detection
+# Basic launch with auto-detection (PR created automatically)
 cloud-agent launch --plan <PLAN_FILE>
 
 # With explicit repository and ref
 cloud-agent launch --plan <PLAN_FILE> --repo https://github.com/org/repo --ref main
 
-# With auto-PR enabled
-cloud-agent launch --plan <PLAN_FILE> --auto-pr
+# Disable PR creation
+cloud-agent launch --plan <PLAN_FILE> --no-auto-pr
 
 # Verbose mode
 cloud-agent launch --plan <PLAN_FILE> --verbose
@@ -143,6 +143,31 @@ cloud-agent status bc_abc123 --non-interactive
 ```
 
 Use `--non-interactive` (or `--no-interactive`) to get plain text output suitable for scripts and automation.
+
+#### Why AI Agents Must Use `--non-interactive`
+
+When AI agents (automated assistants, CI/CD systems, or other programmatic tools) run the Cloud Agents CLI, they **must** use the `--non-interactive` flag:
+
+1. **No Interactive UI**: Without `--non-interactive`, the CLI launches a React Ink interactive terminal UI that requires keyboard input. AI agents cannot interact with keyboard-driven UIs and need plain text output.
+
+2. **Deterministic Behavior**: Interactive mode waits for user input, causing AI agents to hang indefinitely. Non-interactive mode executes immediately and exits with proper status codes.
+
+3. **Parseable Output**: Interactive mode uses terminal formatting (colors, boxes, navigation) that's hard to parse. Non-interactive mode outputs structured plain text that's easy for AI agents to read and process.
+
+4. **Exit Codes**: Non-interactive mode uses proper exit codes (0 for success, 1 for error), which AI agents rely on to determine success/failure.
+
+5. **No Blocking**: Interactive mode blocks waiting for user input. Non-interactive mode completes immediately and returns control.
+
+**Required for AI Agents:**
+- `cloud-agent list --non-interactive` - Always use this flag
+- `cloud-agent status <id> --non-interactive` - Always use this flag
+- `cloud-agent launch --plan <file>` - Already non-interactive by design, PR creation is default
+
+**What happens without `--non-interactive`:**
+- `list` and `status` commands will launch interactive UI and hang waiting for keyboard input
+- AI agents cannot proceed past these commands
+
+See [AGENTS.md](./AGENTS.md) for detailed documentation on non-interactive mode and AI agent usage.
 
 ## Features
 
