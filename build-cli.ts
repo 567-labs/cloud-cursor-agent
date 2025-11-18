@@ -50,8 +50,7 @@ async function buildCli() {
       format: "esm",
       minify: false,
       sourcemap: "external",
-      external: ["react-devtools-core"],
-      // Bun automatically handles JSX and TypeScript
+      external: ["yoga-wasm-web"],
     });
 
     if (!result.success) {

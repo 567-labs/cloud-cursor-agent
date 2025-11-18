@@ -9,6 +9,7 @@
   "scripts": {
     "build": "bun run build-cli.ts",
     "dev": "bun run cloud-agent.tsx",
+    "install:global": "npm pack && npm install -g cloud-agent-*.tgz && rm -f cloud-agent-*.tgz",
     "verify": "test -f cli.js && test -x cli.js && echo '✓ Build verification: cli.js exists and is executable' || echo '✗ Build verification failed'",
     "test": "bun test",
     "test:watch": "bun test --watch",
@@ -26,6 +27,7 @@
     "commander": "^14.0.2",
     "ink": "^4.4.1",
     "react": "^18.2.0",
+    "yoga-wasm-web": "~0.3.3",
     "zod": "^3.23.8"
   },
   "devDependencies": {
