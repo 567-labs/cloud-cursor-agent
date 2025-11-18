@@ -55,6 +55,8 @@ export interface AgentListInputHandlers {
   setOpeningBrowser: (id: string | null) => void;
   /** Set error message */
   setError: (error: string | null) => void;
+  /** Handle conversation view request */
+  onViewConversation?: (selectedAgent: Agent | undefined) => void;
 }
 
 /**
@@ -132,6 +134,7 @@ export function useAgentListInput(
     setSelectedIndex,
     setOpeningBrowser,
     setError,
+    onViewConversation,
   } = handlers;
 
   const {
@@ -181,6 +184,12 @@ export function useAgentListInput(
       setExpandedAgentId(null);
     } else if (input === "t" || input === "T") {
       toggleOpenPrUrl();
+    } else if (input === "c" || input === "C") {
+      // View conversation for selected agent
+      if (onViewConversation) {
+        const selectedAgent = flattenedAgents[selectedIndex];
+        onViewConversation(selectedAgent);
+      }
     } else if (key.leftArrow && hasPreviousPage) {
       // Go to previous page
       setExpandedAgentId(null);

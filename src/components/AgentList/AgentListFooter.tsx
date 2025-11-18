@@ -26,6 +26,8 @@ export interface AgentListFooterProps {
   layoutBreakpoint: LayoutBreakpoint;
   /** Whether to open PR URL (vs Agent URL) */
   openPrUrl: boolean;
+  /** Whether conversation view is available */
+  showConversationHint?: boolean;
 }
 
 /**
@@ -60,6 +62,7 @@ export function AgentListFooter({
   hasNextPage,
   layoutBreakpoint,
   openPrUrl,
+  showConversationHint,
 }: AgentListFooterProps) {
   const paginationHintParts: string[] = [];
   if (hasPreviousPage) {
@@ -74,6 +77,7 @@ export function AgentListFooter({
     "↑↓/jk Navigate",
     "Enter Expand/Status",
     `Enter twice Open ${openPrUrl ? "PR" : "Agent"}`,
+    ...(showConversationHint ? ["c Conversation"] : []),
     "q Back",
     "r Refresh",
     "Filters 1-5/a",

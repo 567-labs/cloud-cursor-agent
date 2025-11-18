@@ -38,6 +38,7 @@ interface AgentListProps {
   apiClient: CloudAgentsApiClient;
   onBack: () => void;
   repositoryFilter?: string;
+  onSelectAgentForConversation?: (agentId: string) => void;
 }
 
 /**
@@ -70,6 +71,7 @@ export function AgentList({
   apiClient,
   onBack,
   repositoryFilter,
+  onSelectAgentForConversation,
 }: AgentListProps) {
   const { terminalWidth, terminalHeight } = useTerminalDimensions();
 
@@ -254,6 +256,13 @@ export function AgentList({
       setSelectedIndex,
       setOpeningBrowser,
       setError: setErrorMessage,
+      onViewConversation: onSelectAgentForConversation
+        ? (agent) => {
+            if (agent) {
+              onSelectAgentForConversation(agent.id);
+            }
+          }
+        : undefined,
     },
     {
       selectedIndex,
@@ -366,6 +375,7 @@ export function AgentList({
         hasNextPage={!!nextCursor}
         layoutBreakpoint={layoutMetrics.breakpoint}
         openPrUrl={openPrUrl}
+        showConversationHint={!!onSelectAgentForConversation}
       />
     </Box>
   );

@@ -10,7 +10,7 @@ import { validatePlanContent } from "../utils/validation.js";
 
 interface FollowupOptions {
   agentId: string;
-  prompt: string;
+  messages: string;
 }
 
 export async function executeFollowup(
@@ -18,7 +18,7 @@ export async function executeFollowup(
   options: FollowupOptions
 ): Promise<void> {
   const { apiClient } = context;
-  const { agentId, prompt } = options;
+  const { agentId, messages } = options;
 
   // Validate agent ID format
   const agentIdValidation = validateAgentId(agentId);
@@ -32,18 +32,18 @@ export async function executeFollowup(
   }
 
   try {
-    // Check if prompt is a file path or direct text
+    // Check if messages is a file path or direct text
     let promptText: string;
-    if (prompt === "-") {
+    if (messages === "-") {
       // Read from stdin
       promptText = await readPlanFile("-");
-    } else if (prompt.startsWith("@")) {
+    } else if (messages.startsWith("@")) {
       // File path
-      const filePath = prompt.slice(1);
+      const filePath = messages.slice(1);
       promptText = await readPlanFile(filePath);
     } else {
       // Direct text
-      promptText = prompt;
+      promptText = messages;
     }
 
     // Validate prompt content (if it's not too short, treat as plan-like content)
@@ -64,6 +64,11 @@ export async function executeFollowup(
     // Check agent status
     const agent = await apiClient.getAgentStatus(agentId);
 
+    // Display current status
+    console.log(`Agent Status: ${agent.status}`);
+    console.log(`Agent ID: ${agent.id}`);
+    console.log("");
+
     if (
       agent.status === "FINISHED" ||
       agent.status === "FAILED" ||
@@ -79,7 +84,9 @@ export async function executeFollowup(
     // Add follow-up
     await apiClient.addFollowup(agentId, { text: promptText });
 
-    console.log(`Follow-up instruction added to agent ${agentId}`);
+    console.log(
+      `Follow-up instruction added to agent ${agentId} (Status: ${agent.status})`
+    );
   } catch (error) {
     if (error instanceof ApiError) {
       console.error(`Error: ${error.message}`);

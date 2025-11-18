@@ -10,7 +10,7 @@ import { executeStatus } from "./status.jsx";
 import { executeWatch } from "./watch.js";
 import { executeCancel } from "./cancel.js";
 import { executeFollowup } from "./followup.js";
-import { executeConversation } from "./conversation.js";
+import { executeConversation } from "./conversation.jsx";
 import { executeOpen } from "./open.js";
 import { executeDelete } from "./delete.js";
 import { executeBatchDelete } from "./batch-delete.js";
@@ -125,26 +125,34 @@ export function registerCommands(
 
   // Followup command
   program
-    .command("followup <agent-id> <prompt>")
+    .command("followup <agent-id>")
     .description(
-      "Add a follow-up instruction to an agent. Prompt can be text, a file path prefixed with @, or '-' to read from stdin"
+      "Add a follow-up instruction to an agent. Messages can be text, a file path prefixed with @, or '-' to read from stdin"
     )
-    .action(async (agentId: string, prompt: string) => {
-      await executeFollowup(context, { agentId, prompt });
+    .requiredOption(
+      "--messages <text>",
+      "Follow-up message. Can be text, a file path prefixed with @, or '-' to read from stdin"
+    )
+    .action(async (agentId: string, options) => {
+      await executeFollowup(context, { agentId, messages: options.messages });
     });
 
   // Conversation command
   program
-    .command("conversation <agent-id>")
-    .description("View agent conversation/logs")
+    .command("conversation [agent-id]")
+    .description(
+      "View agent conversation/logs. If agent-id is provided, shows conversation non-interactively. If omitted, shows interactive agent list (press 'c' on selected agent to view conversation)."
+    )
     .option("--non-interactive", "Disable interactive mode (output plain text)")
     .option("--no-interactive", "Disable interactive mode (output plain text)")
-    .action(async (agentId: string, options) => {
+    .option("--dir <path>", "Working directory for git detection")
+    .action(async (agentId: string | undefined, options) => {
       const normalizedOptions = {
         ...options,
         "non-interactive":
           options.nonInteractive || options["non-interactive"] || false,
         agentId,
+        dir: options.dir,
       };
       await executeConversation(context, normalizedOptions);
     });
