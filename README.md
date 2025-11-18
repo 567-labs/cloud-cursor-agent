@@ -117,6 +117,127 @@ bun run cloud-agent.tsx status bc_abc123 --non-interactive
 
 - `q` - Go back/exit
 
+### Watch Agent (Block Until Complete)
+
+Watch an agent and block until it reaches a terminal state (FINISHED, FAILED, or CANCELLED). Useful for chaining commands in scripts:
+
+```bash
+# Basic usage
+bun run cloud-agent.tsx watch <agent-id>
+
+# With verbose output showing status changes
+bun run cloud-agent.tsx watch <agent-id> --verbose
+
+# Custom polling interval (default: 2000ms)
+bun run cloud-agent.tsx watch <agent-id> --interval 5000
+```
+
+**Exit codes:**
+- `0` for FINISHED
+- `1` for FAILED/CANCELLED
+
+**Example workflow:**
+
+```bash
+AGENT_ID=$(bun run cloud-agent.tsx launch --plan plan.md)
+bun run cloud-agent.tsx watch $AGENT_ID --verbose && echo "Agent completed successfully!"
+```
+
+### Add Follow-up Instructions
+
+Add a follow-up instruction to a running agent:
+
+```bash
+# Direct text
+bun run cloud-agent.tsx followup <agent-id> "Please also add tests"
+
+# From file (prefix with @)
+bun run cloud-agent.tsx followup <agent-id> @followup-instructions.md
+
+# From stdin
+bun run cloud-agent.tsx followup <agent-id> - <<'EOF'
+Please add error handling
+EOF
+```
+
+### View Agent Conversation
+
+View the conversation history between you and the agent:
+
+```bash
+# Interactive mode (default)
+bun run cloud-agent.tsx conversation <agent-id>
+
+# Plain text output
+bun run cloud-agent.tsx conversation <agent-id> --non-interactive
+```
+
+### Open Agent URL
+
+Open the agent's URL in your default browser:
+
+```bash
+# Open agent URL
+bun run cloud-agent.tsx open <agent-id>
+
+# Open PR URL (if available)
+bun run cloud-agent.tsx open <agent-id> --pr
+```
+
+### Delete Agent
+
+Delete an agent:
+
+```bash
+# Delete completed agent
+bun run cloud-agent.tsx delete <agent-id>
+
+# Force delete (even if running)
+bun run cloud-agent.tsx delete <agent-id> --force
+```
+
+### Cancel Agent
+
+Cancel a running agent (note: cancellation may not be supported by the API yet):
+
+```bash
+bun run cloud-agent.tsx cancel <agent-id>
+```
+
+### Batch Delete Agents
+
+Delete multiple agents by status or repository. Useful for cleaning up completed agents:
+
+```bash
+# Delete all finished agents (dry run to preview)
+bun run cloud-agent.tsx batch-delete --status FINISHED --dry-run
+
+# Delete all finished agents
+bun run cloud-agent.tsx batch-delete --status FINISHED --force
+
+# Delete all terminal status agents (FINISHED, FAILED, CANCELLED)
+bun run cloud-agent.tsx batch-delete --status terminal --force
+
+# Delete all failed agents for current repository
+bun run cloud-agent.tsx batch-delete --status FAILED --force
+
+# Delete all agents for a specific repository
+bun run cloud-agent.tsx batch-delete --repo https://github.com/org/repo --force
+
+# Delete all finished agents (limit to first 50)
+bun run cloud-agent.tsx batch-delete --status FINISHED --limit 50 --force
+```
+
+**Options:**
+- `--status <status>` - Filter by status: `FINISHED`, `FAILED`, `CANCELLED`, `CREATING`, `RUNNING`, or `terminal` (all terminal statuses)
+- `--repo <url>` - Filter by repository URL (auto-detected from git if not provided)
+- `--dry-run` - Preview what would be deleted without actually deleting
+- `--force` - Skip confirmation prompt (required for actual deletion)
+- `--limit <number>` - Maximum number of agents to fetch (default: 100)
+- `--dir <path>` - Working directory for git detection
+
+**Note:** The `--force` flag is required to actually delete agents. Without it, the command will show what would be deleted and exit.
+
 ### Interactive Mode
 
 Launch the interactive agent list:

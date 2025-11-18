@@ -157,9 +157,11 @@ When multiple changes modify the same file, combine them into a single plan:
 
 ```bash
 # Phase 1: Single plan (modifies AgentList.tsx)
-bun run cloud-agent.tsx launch --plan plan/refactor-phase1-utilities.md
+AGENT_ID=$(bun run cloud-agent.tsx launch --plan plan/refactor-phase1-utilities.md)
 
-# Wait for Phase 1 to complete, then launch Phase 2
+# Wait for Phase 1 to complete using watch command
+bun run cloud-agent.tsx watch $AGENT_ID --verbose
+
 # Phase 2: Single plan (modifies AgentList.tsx again)
 bun run cloud-agent.tsx launch --plan plan/refactor-phase2-components.md
 
@@ -181,6 +183,50 @@ Before launching multiple plans, verify **strictly**:
 - [ ] Only truly independent tasks (zero file overlap) run in parallel
 
 **When in doubt:** Combine plans that touch the same file, or sequence them sequentially.
+
+## Quality of Life Commands
+
+### Watch Command
+
+The `watch` command blocks until an agent completes, making it perfect for chaining commands:
+
+```bash
+# Launch and wait for completion
+AGENT_ID=$(bun run cloud-agent.tsx launch --plan plan.md)
+bun run cloud-agent.tsx watch $AGENT_ID --verbose
+
+# Use exit code to determine success
+bun run cloud-agent.tsx watch $AGENT_ID && echo "Success!" || echo "Failed"
+```
+
+### Other Useful Commands
+
+- `bun run cloud-agent.tsx followup <agent-id> <prompt>` - Add follow-up instructions
+- `bun run cloud-agent.tsx conversation <agent-id>` - View agent conversation/logs
+- `bun run cloud-agent.tsx open <agent-id>` - Open agent URL in browser
+- `bun run cloud-agent.tsx delete <agent-id>` - Delete an agent
+- `bun run cloud-agent.tsx cancel <agent-id>` - Cancel a running agent
+- `bun run cloud-agent.tsx batch-delete --status FINISHED --force` - Delete multiple agents by status or repository
+
+### Batch Delete Command
+
+Delete multiple agents at once for cleanup:
+
+```bash
+# Preview what would be deleted
+bun run cloud-agent.tsx batch-delete --status FINISHED --dry-run
+
+# Delete all finished agents
+bun run cloud-agent.tsx batch-delete --status FINISHED --force
+
+# Delete all terminal status agents (FINISHED, FAILED, CANCELLED)
+bun run cloud-agent.tsx batch-delete --status terminal --force
+
+# Delete all agents for current repository
+bun run cloud-agent.tsx batch-delete --repo https://github.com/org/repo --force
+```
+
+**Status options:** `FINISHED`, `FAILED`, `CANCELLED`, `CREATING`, `RUNNING`, or `terminal` (all terminal statuses)
 
 ## Troubleshooting
 
