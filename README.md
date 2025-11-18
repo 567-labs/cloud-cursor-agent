@@ -16,6 +16,16 @@ Launch agents in parallel to handle these independently while you focus on your 
 
 This CLI enables **Agent Orchestration**: programmatically offload small tasks to parallel agents so you can focus on your main work thread. Review and merge the pull requests when you're ready.
 
+## Use Cases & Playbooks
+
+- `cloud-agent launch --plan plan/bug-fixes/type-errors.md` while you keep coding on the main branch.
+- `cloud-agent watch bc_fix123 --interval 5000 --verbose` to block a CI job until a helper agent finishes.
+- `cloud-agent followup bc_docs456 "Please also add CLI screenshots"` to iterate without stopping the agent.
+- `cloud-agent batch-delete --status FINISHED --force` every Friday to keep your workspace tidy.
+- `cloud-agent install-agents-md --file docs/CLI.md` to refresh in-repo documentation automatically.
+
+Need step-by-step recipes? See `docs/EXAMPLES.md` for copy-ready commands.
+
 ## Installing as a CLI Tool
 
 Install this tool globally so you can run `cloud-agent` from any directory:
@@ -73,7 +83,7 @@ You can obtain an API key from [Cursor Settings](https://cursor.com/settings).
 
 ## Usage
 
-After installation, you can use the `cloud-agent` command directly. If you built from source, use `./cli.js` or `bun run cloud-agent.tsx` instead.
+After installation, you can use the `cloud-agent` command directly. If you built from source, use `./cli.js` or `bun run cloud-agent.tsx` instead. For a full command catalog with copy-ready snippets, read `docs/EXAMPLES.md`.
 
 ### Quick Launch (Primary Workflow)
 
@@ -455,6 +465,35 @@ When AI agents (automated assistants, CI/CD systems, or other programmatic tools
 - `list` and `status` commands will launch interactive UI and hang waiting for keyboard input
 - AI agents cannot proceed past these commands
 
+## Testing the CLI Commands
+
+Regular testing keeps the CLI stable and gives you confidence before launching agents that change code.
+
+### Automated Tests
+
+- Run the full suite with `bun test`.
+- Focus on a single command: `bun test src/commands/watch.test.ts`.
+- Track coverage when you touch critical flows: `bun run test:coverage`.
+
+### Manual Smoke Tests
+
+```bash
+# Build once, then exercise a few commands
+bun run build
+./cli.js list --non-interactive --limit 10
+./cli.js launch --plan plan/demo.md --repo https://github.com/org/repo --branch demo-agent
+./cli.js status bc_demo123 --non-interactive --verbose
+```
+
+- Use `cloud-agent watch bc_demo123 --interval 5000` to ensure status polling works.
+- Verify the interactive menu with `cloud-agent` and exit using `q`.
+
+### Troubleshooting Signals
+
+- Add `--verbose` to any failing command to print request/response metadata.
+- If builds fail, run `bun run verify` to confirm `cli.js` exists and is executable.
+- Consult `docs/TROUBLESHOOTING.md` when you hit authentication issues, missing plan files, or rate limits.
+
 ## For AI Agents
 
 **CRITICAL:** AI agents must use `--non-interactive` flag for all commands that support it. See the "Non-Interactive Mode" section above for details.
@@ -680,6 +719,13 @@ bun run format:check
 ├── plan/                        # Plan files directory
 └── package.json
 ```
+
+## Additional Documentation
+
+- `docs/API.md` – HTTP endpoint reference and sample curl requests.
+- `docs/TROUBLESHOOTING.md` – Common failure modes with fixes.
+- `docs/EXAMPLES.md` – Command-by-command usage snippets.
+- `docs/CONTRIBUTING.md` – Documentation-focused contribution checklist.
 
 ## API Reference
 

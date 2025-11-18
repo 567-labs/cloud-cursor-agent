@@ -15,6 +15,28 @@ cloud-agent launch --plan plan/bug-fixes/type-errors.md
 # Output: https://cursor.com/agents?id=bc_abc123
 ```
 
+## Example Launch Plan
+
+```markdown
+# Improve docs: add troubleshooting
+
+## Goals
+
+- Add troubleshooting table to README
+- Link to docs/TROUBLESHOOTING.md
+
+## Tasks
+
+- Update README.md with new section
+- Create docs/TROUBLESHOOTING.md with rate-limit tips
+```
+
+Run it with:
+
+```bash
+cloud-agent launch --plan plan/docs/troubleshooting.md --model gpt-5.1-codex
+```
+
 ## Launch Command
 
 ```bash
@@ -154,6 +176,36 @@ When multiple changes modify the same file, combine them into a single plan:
 
 - Single Plan: Extract components and hooks (modifies AgentList.tsx once)
 
+## Command Walkthrough for Agents
+
+- **List agents scoped to a repo**
+  ```bash
+  cloud-agent list --non-interactive --dir /workspace/project
+  ```
+  Filter further with `--search "docs"`.
+
+- **Watch multiple agents**
+  ```bash
+  cloud-agent watch bc_docs111 bc_perf222 --interval 4000 --verbose
+  ```
+
+- **Add follow-up instructions**
+  ```bash
+  cloud-agent followup bc_docs111 "Tighten troubleshooting guide"
+  ```
+
+- **Delete stuck agents**
+  ```bash
+  cloud-agent delete bc_old999 --force
+  ```
+
+- **Batch cleanup**
+  ```bash
+  cloud-agent batch-delete --status FINISHED --limit 50 --force
+  ```
+
+For more examples, open `docs/EXAMPLES.md`.
+
 ### Dependency Management
 
 **Sequential Execution (required for same-file refactorings):**
@@ -189,6 +241,21 @@ Before launching multiple plans, verify **strictly**:
 - [ ] Only truly independent tasks (zero file overlap) run in parallel
 
 **When in doubt:** Combine plans that touch the same file, or sequence them sequentially.
+
+## Testing CLI Commands Before Automation
+
+- Run `bun test` (or targeted suites such as `bun test src/commands/launch.test.ts`) before shipping new instructions.
+- Smoke-test real commands with `cloud-agent list --non-interactive --dir /workspace` and `cloud-agent status bc_demo123 --non-interactive`.
+- Use `cloud-agent watch bc_demo123 --verbose --interval 5000` to confirm polling still works.
+- When debugging, pass `--verbose` and capture the entire command + output in the plan or follow-up.
+- If anything fails, check `docs/TROUBLESHOOTING.md` for fixes you can apply programmatically.
+
+## Additional References
+
+- `README.md` – human-facing onboarding guide.
+- `docs/API.md` – HTTP endpoint reference with curl examples.
+- `docs/EXAMPLES.md` – ready-to-run command snippets.
+- `docs/TROUBLESHOOTING.md` – quick fixes for common errors.
 
 ## Quality of Life Commands
 
