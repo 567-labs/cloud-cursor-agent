@@ -59,14 +59,8 @@ This will:
 # Basic launch with auto-detection (PR created automatically)
 cloud-agent launch --plan <PLAN_FILE>
 
-# With explicit repository and ref
-cloud-agent launch --plan <PLAN_FILE> --repo https://github.com/org/repo --ref main
-
 # Disable PR creation
 cloud-agent launch --plan <PLAN_FILE> --no-auto-pr
-
-# Verbose mode
-cloud-agent launch --plan <PLAN_FILE> --verbose
 ```
 
 ### List Agents
