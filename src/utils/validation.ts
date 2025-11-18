@@ -2,128 +2,299 @@
  * Input validation utilities
  */
 
+export type ValidationResult = { valid: true } | { valid: false; error: string };
+
+const GITHUB_OWNER_REGEX = /^[A-Za-z0-9](?:[A-Za-z0-9._-]{0,38})$/;
+const GITHUB_REPO_REGEX = /^[A-Za-z0-9](?:[A-Za-z0-9._-]{0,99})$/;
+const INVALID_REF_CHARACTERS = /[\u0000-\u001F\u007F\s~^:?*\[\]\\]/;
+const FRONTMATTER_REGEX = /^---\s*\r?\n[\s\S]*?\r?\n---\s*\r?\n?/;
+const PLAN_EXTENSIONS = [".md", ".markdown", ".plan", ".txt"];
+const INVALID_PLAN_PATH_CHARS = /[<>:"|?*\u0000]/;
+const AGENT_ID_REGEX = /^bc_[a-z0-9]{5,}$/i;
+
+const success = (): ValidationResult => ({ valid: true });
+const failure = (error: string): ValidationResult => ({ valid: false, error });
+
 /**
  * Validate a GitHub repository URL
  * Accepts both HTTPS and SSH formats
  */
-export function validateRepositoryUrl(url: string): { valid: boolean; error?: string } {
+export function validateRepositoryUrl(url: string): ValidationResult {
   if (!url || typeof url !== "string") {
-    return { valid: false, error: "Repository URL is required" };
+    return failure("Repository URL is required.");
   }
 
   const trimmed = url.trim();
-
-  // HTTPS format: https://github.com/org/repo
-  if (trimmed.startsWith("https://github.com/")) {
-    const parts = trimmed.slice(19).split("/");
-    if (parts.length >= 2 && parts[0] && parts[1]) {
-      return { valid: true };
-    }
+  if (trimmed.length === 0) {
+    return failure("Repository URL cannot be empty.");
   }
 
-  // SSH format: git@github.com:org/repo.git or git@github.com:org/repo
-  if (trimmed.startsWith("git@github.com:")) {
-    const parts = trimmed.slice(15).replace(/\.git$/, "").split("/");
-    if (parts.length >= 2 && parts[0] && parts[1]) {
-      return { valid: true };
+  if (/^https?:\/\//i.test(trimmed)) {
+    let parsedUrl: URL;
+    try {
+      parsedUrl = new URL(trimmed);
+    } catch {
+      return failure("Repository URL is not a valid URL. Example: https://github.com/owner/repo");
     }
+
+    if (parsedUrl.protocol !== "https:") {
+      return failure("Use an https:// GitHub URL (e.g., https://github.com/owner/repo).");
+    }
+
+    if (parsedUrl.hostname.toLowerCase() !== "github.com") {
+      return failure("Only github.com repositories are supported.");
+    }
+
+    const pathParts = parsedUrl.pathname
+      .replace(/^\//, "")
+      .replace(/\.git$/i, "")
+      .replace(/\/+$/, "")
+      .split("/")
+      .filter(Boolean);
+
+    if (pathParts.length < 2) {
+      return failure("Repository URL must include both the owner and repository name (e.g., github.com/owner/repo).");
+    }
+
+    if (pathParts.length > 2) {
+      return failure("Repository URL should only include the owner and repository. Remove extra path segments.");
+    }
+
+    const [owner, repo] = pathParts;
+
+    if (!GITHUB_OWNER_REGEX.test(owner)) {
+      return failure("Owner contains unsupported characters. Use letters, numbers, dots, underscores, or dashes.");
+    }
+
+    if (!GITHUB_REPO_REGEX.test(repo)) {
+      return failure("Repository name contains unsupported characters. Use letters, numbers, dots, underscores, or dashes.");
+    }
+
+    return success();
   }
 
-  return {
-    valid: false,
-    error: "Invalid repository URL. Expected format: https://github.com/org/repo or git@github.com:org/repo",
-  };
+  const sshMatch = trimmed.match(/^git@github\.com:(.+)$/i);
+  if (sshMatch) {
+    const repoPart = sshMatch[1].replace(/\.git$/i, "").replace(/\/+$/, "");
+    const segments = repoPart.split("/").filter(Boolean);
+
+    if (segments.length !== 2) {
+      return failure("SSH URLs must look like git@github.com:owner/repo.");
+    }
+
+    const [owner, repo] = segments;
+
+    if (!GITHUB_OWNER_REGEX.test(owner)) {
+      return failure("Owner contains unsupported characters. Use letters, numbers, dots, underscores, or dashes.");
+    }
+
+    if (!GITHUB_REPO_REGEX.test(repo)) {
+      return failure("Repository name contains unsupported characters. Use letters, numbers, dots, underscores, or dashes.");
+    }
+
+    return success();
+  }
+
+  return failure("Invalid repository URL. Use https://github.com/owner/repo or git@github.com:owner/repo.");
 }
 
 /**
  * Validate a git ref (branch, tag, or commit hash)
  */
-export function validateRef(ref: string): { valid: boolean; error?: string } {
+export function validateRef(ref: string): ValidationResult {
   if (!ref || typeof ref !== "string") {
-    return { valid: false, error: "Ref is required" };
+    return failure("Ref is required.");
   }
 
   const trimmed = ref.trim();
 
   if (trimmed.length === 0) {
-    return { valid: false, error: "Ref cannot be empty" };
+    return failure("Ref cannot be empty.");
   }
 
-  // Basic validation - refs shouldn't contain certain characters
-  if (/[~^:?*\[\]\\]/.test(trimmed)) {
-    return {
-      valid: false,
-      error: "Invalid ref format. Refs cannot contain certain special characters.",
-    };
+  if (trimmed.length > 255) {
+    return failure("Ref cannot exceed 255 characters.");
   }
 
-  return { valid: true };
+  if (INVALID_REF_CHARACTERS.test(trimmed)) {
+    return failure("Ref cannot contain spaces or any of ~ ^ : ? * [ ] \\ characters.");
+  }
+
+  if (trimmed.startsWith("/") || trimmed.endsWith("/")) {
+    return failure("Ref cannot start or end with a slash.");
+  }
+
+  if (trimmed.includes("//")) {
+    return failure("Ref cannot contain consecutive slashes.");
+  }
+
+  if (trimmed.startsWith(".") || trimmed.endsWith(".") || trimmed.includes("..")) {
+    return failure("Ref cannot start, end, or contain consecutive periods.");
+  }
+
+  if (trimmed.startsWith("-")) {
+    return failure("Ref cannot start with a dash.");
+  }
+
+  if (trimmed.includes("@{")) {
+    return failure("Ref cannot contain the sequence '@{'.");
+  }
+
+  if (trimmed.endsWith(".lock")) {
+    return failure("Ref cannot end with '.lock'.");
+  }
+
+  return success();
 }
 
 /**
  * Validate a file path
  */
-export function validateFilePath(filePath: string): { valid: boolean; error?: string } {
+export function validateFilePath(filePath: string): ValidationResult {
   if (!filePath || typeof filePath !== "string") {
-    return { valid: false, error: "File path is required" };
+    return failure("File path is required.");
   }
 
   const trimmed = filePath.trim();
 
   if (trimmed.length === 0) {
-    return { valid: false, error: "File path cannot be empty" };
+    return failure("File path cannot be empty.");
   }
 
-  return { valid: true };
+  return success();
 }
 
 /**
  * Validate an agent ID
  */
-export function validateAgentId(id: string): { valid: boolean; error?: string } {
+export function validateAgentId(id: string): ValidationResult {
   if (!id || typeof id !== "string") {
-    return { valid: false, error: "Agent ID is required" };
+    return failure("Agent ID is required.");
   }
 
   const trimmed = id.trim();
 
   if (trimmed.length === 0) {
-    return { valid: false, error: "Agent ID cannot be empty" };
+    return failure("Agent ID cannot be empty.");
   }
 
-  // Agent IDs typically start with "bc_"
-  if (!trimmed.startsWith("bc_") && trimmed.length < 3) {
-    return {
-      valid: false,
-      error: "Invalid agent ID format. Expected format: bc_xxxxx",
-    };
+  if (!AGENT_ID_REGEX.test(trimmed)) {
+    return failure("Agent ID must look like bc_123abc (letters and numbers only, at least 5 characters after bc_).");
   }
 
-  return { valid: true };
+  return success();
 }
 
 /**
  * Validate API key format (basic check)
  */
-export function validateApiKey(apiKey: string): { valid: boolean; error?: string } {
+export function validateApiKey(apiKey: string): ValidationResult {
   if (!apiKey || typeof apiKey !== "string") {
-    return { valid: false, error: "API key is required" };
+    return failure("API key is required.");
   }
 
   const trimmed = apiKey.trim();
 
   if (trimmed.length === 0) {
-    return { valid: false, error: "API key cannot be empty" };
+    return failure("API key cannot be empty.");
   }
 
   // Basic length check - API keys are typically longer
   if (trimmed.length < 10) {
-    return {
-      valid: false,
-      error: "API key appears to be invalid (too short)",
-    };
+    return failure("API key appears to be invalid (too short).");
   }
 
-  return { valid: true };
+  return success();
+}
+
+/**
+ * Validate a branch name (wrapper around validateRef with branch-specific rules)
+ */
+export function validateBranchName(branch: string): ValidationResult {
+  const base = validateRef(branch);
+  if (!base.valid) {
+    return failure(base.error.replace(/^Ref/i, "Branch name"));
+  }
+
+  const trimmed = branch.trim();
+
+  if (trimmed === "HEAD") {
+    return failure("Branch name cannot be 'HEAD' because it is reserved by git.");
+  }
+
+  if (/^refs\//i.test(trimmed)) {
+    return failure("Provide the branch name without the 'refs/' prefix (e.g., use main instead of refs/heads/main).");
+  }
+
+  if (!/[A-Za-z]/.test(trimmed)) {
+    return failure("Branch name should include at least one letter to keep it descriptive.");
+  }
+
+  return success();
+}
+
+/**
+ * Validate a plan file path
+ */
+export function validatePlanFilePath(filePath: string): ValidationResult {
+  if (!filePath || typeof filePath !== "string") {
+    return failure("Plan file path is required.");
+  }
+
+  const trimmed = filePath.trim();
+
+  if (trimmed.length === 0) {
+    return failure("Plan file path cannot be empty.");
+  }
+
+  if (INVALID_PLAN_PATH_CHARS.test(trimmed)) {
+    return failure("Plan file path cannot include any of the following characters: < > : \" | ? *");
+  }
+
+  if (trimmed.endsWith("/") || trimmed.endsWith("\\")) {
+    return failure("Plan file path must point to a file, not a directory.");
+  }
+
+  const lowercasePath = trimmed.toLowerCase();
+  const hasValidExtension = PLAN_EXTENSIONS.some((ext) => lowercasePath.endsWith(ext));
+  if (!hasValidExtension) {
+    return failure(`Plan file must end with one of the following extensions: ${PLAN_EXTENSIONS.join(", ")}`);
+  }
+
+  return success();
+}
+
+/**
+ * Validate plan content (post-read)
+ */
+export function validatePlanContent(content: string): ValidationResult {
+  if (!content || typeof content !== "string") {
+    return failure("Plan content is required.");
+  }
+
+  const trimmed = content.trim();
+  if (trimmed.length === 0) {
+    return failure("Plan content cannot be empty.");
+  }
+
+  const withoutFrontmatter = trimmed.replace(FRONTMATTER_REGEX, "").trim();
+  if (withoutFrontmatter.length === 0) {
+    return failure("Plan content only contains frontmatter. Add the actual plan under the metadata.");
+  }
+
+  if (withoutFrontmatter.length < 20) {
+    return failure("Plan content is too short. Add a few sentences or bullet points describing the work.");
+  }
+
+  if (/^\s*(todo|tbd|coming soon)\s*$/i.test(withoutFrontmatter)) {
+    return failure("Plan content cannot be a placeholder like TODO or TBD. Provide concrete steps.");
+  }
+
+  const hasStructure = /(^|\n)\s*(?:#|\d+\.|[-*])\s+\S+/m.test(withoutFrontmatter);
+  if (!hasStructure) {
+    return failure("Plan content should include at least one heading or bullet so it can be parsed.");
+  }
+
+  return success();
 }
 
