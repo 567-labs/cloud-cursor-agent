@@ -89,6 +89,7 @@ async function main() {
       "batch-delete",
       "me",
       "list-models",
+      "install-agents-md",
     ].includes(args[0]);
 
   // Only show interactive menu if:
@@ -106,6 +107,7 @@ async function main() {
       const { waitUntilExit } = render(
         <App
           apiClient={apiClient}
+          context={context}
           initialView="menu"
           repositoryFilter={repositoryFilter}
         />

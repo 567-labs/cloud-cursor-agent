@@ -16,6 +16,7 @@ import { executeDelete } from "./delete.js";
 import { executeBatchDelete } from "./batch-delete.js";
 import { executeMe } from "./me.js";
 import { executeListModels } from "./list-models.js";
+import { executeInstallAgentsMd } from "./install-agents-md.js";
 
 /**
  * Register all CLI commands with a Commander.js program instance.
@@ -213,5 +214,22 @@ export function registerCommands(
     .description("List available models for cloud agents")
     .action(async () => {
       await executeListModels(context);
+    });
+
+  // Install Agents MD command
+  program
+    .command("install-agents-md")
+    .description(
+      "Generate and append CLI usage instructions to AGENTS.md based on available commands. Skips if instructions already exist."
+    )
+    .option("--file <path>", "Path to AGENTS.md file (default: AGENTS.md)")
+    .option("--dir <path>", "Working directory for file operations")
+    .option("--force", "Force installation even if instructions already exist")
+    .action(async (options) => {
+      await executeInstallAgentsMd(context, {
+        file: options.file,
+        workingDir: options.dir,
+        force: options.force || false,
+      });
     });
 }

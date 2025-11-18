@@ -13,6 +13,7 @@ interface MainMenuProps {
   onSelectListAgentsRepo: () => void;
   onSelectApiKeyInfo: () => void;
   onSelectListModels: () => void;
+  onSelectInstallAgentsMd: () => void;
   onExit: () => void;
 }
 
@@ -21,6 +22,7 @@ export function MainMenu({
   onSelectListAgentsRepo,
   onSelectApiKeyInfo,
   onSelectListModels,
+  onSelectInstallAgentsMd,
   onExit,
 }: MainMenuProps) {
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -32,6 +34,7 @@ export function MainMenu({
     { label: "List Agents (All)", action: onSelectListAgentsAll },
     { label: "API Key Info", action: onSelectApiKeyInfo },
     { label: "List Models", action: onSelectListModels },
+    { label: "Install Agents MD", action: onSelectInstallAgentsMd },
     {
       label: "Exit",
       action: () => {

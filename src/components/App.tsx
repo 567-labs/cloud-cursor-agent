@@ -10,13 +10,22 @@ import { AgentList } from "./AgentList.js";
 import { AgentStatus } from "./AgentStatus.js";
 import { ApiKeyInfo } from "./ApiKeyInfo.js";
 import { ModelsList } from "./ModelsList.js";
+import { InstallAgentsMd } from "./InstallAgentsMd.js";
 import { useTerminalDimensions } from "../hooks/useTerminalDimensions.js";
 import type { CloudAgentsApiClient } from "../api/client.js";
+import type { CommandContext } from "../cli/types.js";
 
-type View = "menu" | "list" | "status" | "apiKeyInfo" | "models";
+type View =
+  | "menu"
+  | "list"
+  | "status"
+  | "apiKeyInfo"
+  | "models"
+  | "installAgentsMd";
 
 interface AppProps {
   apiClient: CloudAgentsApiClient;
+  context?: CommandContext;
   initialView?: View;
   initialAgentId?: string;
   repositoryFilter?: string;
@@ -24,6 +33,7 @@ interface AppProps {
 
 export function App({
   apiClient,
+  context,
   initialView = "menu",
   initialAgentId,
   repositoryFilter,
@@ -50,6 +60,7 @@ export function App({
           }}
           onSelectApiKeyInfo={() => setView("apiKeyInfo")}
           onSelectListModels={() => setView("models")}
+          onSelectInstallAgentsMd={() => setView("installAgentsMd")}
           onExit={() => exit()}
         />
       )}
@@ -72,6 +83,9 @@ export function App({
       )}
       {view === "models" && (
         <ModelsList apiClient={apiClient} onBack={() => setView("menu")} />
+      )}
+      {view === "installAgentsMd" && context && (
+        <InstallAgentsMd context={context} onBack={() => setView("menu")} />
       )}
     </Box>
   );
