@@ -3,12 +3,12 @@
  * Displays a list of agents in a table format
  */
 
-import React, { useCallback, useEffect, useState } from "react";
-import { Box, Text, useInput } from "ink";
+import React, { useCallback, useEffect, useState, useMemo, useRef } from "react";
+import { Box, Text, useInput, useStdout } from "ink";
 import { CloudAgentsApiClient, ApiError } from "../api/client.js";
 import { Spinner } from "./Spinner.js";
 import { openInBrowser } from "../utils/browser.js";
-import type { Agent } from "../api/schemas.js";
+import type { Agent, AgentStatus } from "../api/schemas.js";
 
 interface AgentListProps {
   apiClient: CloudAgentsApiClient;
@@ -42,14 +42,48 @@ function getStatusDisplay(status: string): { symbol: string; label: string; colo
 }
 
 function truncate(str: string, maxLength: number): string {
+  if (maxLength <= 0) return str;
   if (str.length <= maxLength) {
     return str;
   }
-  return str.slice(0, maxLength - 3) + "...";
+  return str.slice(0, Math.max(0, maxLength - 3)) + "...";
+}
+
+function clampWidth(width: number, min: number = 8): number {
+  return Math.max(min, width);
+}
+
+function getSeparator(width: number, minLength: number = 5): string {
+  return "─".repeat(Math.max(minLength, width));
+}
+
+type LayoutBreakpoint = "wide" | "medium" | "compact";
+
+function getLayoutBreakpoint(width: number): LayoutBreakpoint {
+  if (width >= 100) return "wide";
+  if (width >= 70) return "medium";
+  return "compact";
+}
+
+function getLayoutLabel(breakpoint: LayoutBreakpoint): string {
+  switch (breakpoint) {
+    case "wide":
+      return "Wide layout";
+    case "medium":
+      return "Medium layout";
+    case "compact":
+      return "Compact layout";
+  }
 }
 
 function normalizeRepositoryUrl(url: string): string {
-  return url.replace(/\.git$/, "").toLowerCase().trim();
+  if (!url) return "";
+  return url
+    .replace(/^https?:\/\//, "") // Remove http:// or https:// prefix
+    .replace(/\.git$/, "")
+    .replace(/\/$/, "") // Remove trailing slash
+    .toLowerCase()
+    .trim();
 }
 
 function groupAgentsByStatus(agents: Agent[]): Map<string, Agent[]> {
@@ -85,19 +119,126 @@ export function AgentList({ apiClient, onBack, repositoryFilter }: AgentListProp
   const [expandedAgentId, setExpandedAgentId] = useState<string | null>(null);
   const [lastEnterPress, setLastEnterPress] = useState<number>(0);
   const [openingBrowser, setOpeningBrowser] = useState<string | null>(null);
-  const terminalWidth = process.stdout.columns || 80;
-  const terminalHeight = process.stdout.rows || 24;
+  const [inFlightCursor, setInFlightCursor] = useState<string | undefined>(undefined);
+  const [statusFilter, setStatusFilter] = useState<AgentStatus | null>(null);
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Real-time terminal dimensions using Ink hooks
+  const { stdout } = useStdout();
+  const [terminalWidth, setTerminalWidth] = useState<number>(stdout?.columns || process.stdout.columns || 80);
+  const [terminalHeight, setTerminalHeight] = useState<number>(stdout?.rows || process.stdout.rows || 24);
+  
+  // Debounce resize events to avoid spamming API
+  const resizeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastAgentsPerViewRef = useRef<number>(0);
+  
+  // Listen to resize events
+  useEffect(() => {
+    const handleResize = () => {
+      const newWidth = stdout?.columns || process.stdout.columns || 80;
+      const newHeight = stdout?.rows || process.stdout.rows || 24;
+      setTerminalWidth(newWidth);
+      setTerminalHeight(newHeight);
+    };
+    
+    // Initial sync
+    handleResize();
+    
+    // Listen to resize events on stdout
+    if (stdout) {
+      stdout.on("resize", handleResize);
+      return () => {
+        stdout.off("resize", handleResize);
+        if (resizeTimeoutRef.current) {
+          clearTimeout(resizeTimeoutRef.current);
+        }
+      };
+    }
+    
+    // Fallback to process.stdout if stdout is not available
+    process.stdout.on("resize", handleResize);
+    return () => {
+      process.stdout.off("resize", handleResize);
+      if (resizeTimeoutRef.current) {
+        clearTimeout(resizeTimeoutRef.current);
+      }
+    };
+  }, [stdout]);
+  
+  // Memoized layout metrics
   const headerHeight = 4;
   const footerHeight = 4;
   const paddingHeight = 2;
-  const availableHeight = Math.max(5, terminalHeight - headerHeight - footerHeight - paddingHeight);
-  const agentsPerView = Math.max(3, Math.floor(availableHeight / 3));
+  const chromePadding = 4; // Padding for borders and margins
+  
+  const availableHeight = useMemo(() => {
+    return Math.max(5, terminalHeight - headerHeight - footerHeight - paddingHeight);
+  }, [terminalHeight]);
+  
+  const agentsPerView = useMemo(() => {
+    return Math.max(3, Math.floor(availableHeight / 3));
+  }, [availableHeight]);
+  
+  const availableContentWidth = useMemo(() => {
+    return clampWidth(terminalWidth - chromePadding);
+  }, [terminalWidth]);
+  
+  const layoutBreakpoint = useMemo(() => {
+    return getLayoutBreakpoint(terminalWidth);
+  }, [terminalWidth]);
+  
+  const separatorWidth = useMemo(() => {
+    return clampWidth(terminalWidth - 4, 20);
+  }, [terminalWidth]);
+  
+  // Column distribution based on breakpoint
+  const columnLayout = useMemo(() => {
+    const width = availableContentWidth;
+    if (layoutBreakpoint === "wide") {
+      // >= 100 columns: 45% name, 35% repo, remainder spacing
+      return {
+        nameWidth: Math.floor(width * 0.45),
+        repoWidth: Math.floor(width * 0.35),
+        stacked: false,
+      };
+    } else if (layoutBreakpoint === "medium") {
+      // 70-100: 60% name, 40% repo
+      return {
+        nameWidth: Math.floor(width * 0.60),
+        repoWidth: Math.floor(width * 0.40),
+        stacked: false,
+      };
+    } else {
+      // < 70: stack repository and URLs beneath name
+      return {
+        nameWidth: width,
+        repoWidth: width,
+        stacked: true,
+      };
+    }
+  }, [availableContentWidth, layoutBreakpoint]);
+  
+  // Filter agents by status if filter is active
+  const filteredAgents = useMemo(() => {
+    if (!statusFilter) return agents;
+    return agents.filter(agent => agent.status === statusFilter);
+  }, [agents, statusFilter]);
+  
   const FETCH_MULTIPLIER = 2;
 
   const loadAgents = useCallback(async (cursor?: string, perPage = agentsPerView) => {
+    // Prevent overlapping fetches
+    if (inFlightCursor !== undefined && inFlightCursor === cursor) {
+      return;
+    }
+    
     try {
+      setInFlightCursor(cursor);
       setLoading(true);
       setError(null);
+      
+      // Precompute fetch size to avoid empty slots when gaining vertical space
+      const fetchSize = Math.ceil(perPage * FETCH_MULTIPLIER);
       
       // Keep fetching until we have enough agents or run out
       let allAgents: Agent[] = [];
@@ -105,7 +246,7 @@ export function AgentList({ apiClient, onBack, repositoryFilter }: AgentListProp
       let hasMore = true;
       
       while (allAgents.length < perPage && hasMore) {
-        const response = await apiClient.listAgents(perPage * FETCH_MULTIPLIER, currentCursor); // Fetch more to account for filtering
+        const response = await apiClient.listAgents(fetchSize, currentCursor);
         
         // Filter by repository if filter is provided
         let filteredAgents = response.agents;
@@ -119,7 +260,9 @@ export function AgentList({ apiClient, onBack, repositoryFilter }: AgentListProp
         
         allAgents = [...allAgents, ...filteredAgents];
         currentCursor = response.nextCursor;
-        hasMore = !!response.nextCursor && filteredAgents.length > 0;
+        // Continue fetching as long as there are more pages from the API
+        // Don't stop just because current page has no matches when filtering
+        hasMore = !!response.nextCursor && response.agents.length > 0;
         
         // If we have enough agents or no more pages, stop
         if (allAgents.length >= perPage || !hasMore) {
@@ -128,7 +271,7 @@ export function AgentList({ apiClient, onBack, repositoryFilter }: AgentListProp
       }
       
       // Take only the first perPage agents
-        const pageAgents = allAgents.slice(0, perPage);
+      const pageAgents = allAgents.slice(0, perPage);
       setAgents(pageAgents);
       
       // Set next cursor if we have more agents or more pages available
@@ -150,22 +293,173 @@ export function AgentList({ apiClient, onBack, repositoryFilter }: AgentListProp
       }
     } finally {
       setLoading(false);
+      setInFlightCursor(undefined);
     }
-  }, [apiClient, repositoryFilter, agentsPerView]);
+  }, [apiClient, repositoryFilter, agentsPerView, inFlightCursor]);
 
+  // Initialize lastAgentsPerViewRef
+  useEffect(() => {
+    if (lastAgentsPerViewRef.current === 0) {
+      lastAgentsPerViewRef.current = agentsPerView;
+    }
+  }, [agentsPerView]);
+  
+  // Initial load
   useEffect(() => {
     loadAgents(undefined, agentsPerView);
-  }, [loadAgents, agentsPerView]);
+    lastAgentsPerViewRef.current = agentsPerView;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [apiClient, repositoryFilter]);
+  
+  // Resize-aware pagination: reload current page when agentsPerView changes
+  useEffect(() => {
+    // Skip if this is the initial load or if agentsPerView hasn't changed materially
+    if (Math.abs(agentsPerView - lastAgentsPerViewRef.current) <= 1) {
+      return;
+    }
+    
+    // Debounce resize events to avoid spamming API while user drags window
+    if (resizeTimeoutRef.current) {
+      clearTimeout(resizeTimeoutRef.current);
+    }
+    
+    resizeTimeoutRef.current = setTimeout(() => {
+      // Reload current page with new page size
+      loadAgents(currentPageCursor, agentsPerView);
+      
+      // Clamp selectedIndex after reload (will be handled in a separate effect)
+      // Clear prevCursors if new page size is larger than cached pages can satisfy
+      if (agentsPerView > lastAgentsPerViewRef.current && prevCursors.length > 0) {
+        setPrevCursors([]);
+      }
+      
+      lastAgentsPerViewRef.current = agentsPerView;
+    }, 300); // 300ms debounce
+    
+    return () => {
+      if (resizeTimeoutRef.current) {
+        clearTimeout(resizeTimeoutRef.current);
+      }
+    };
+  }, [agentsPerView, currentPageCursor, prevCursors, loadAgents]);
+  
+  // Clamp selectedIndex when filtered agents list changes
+  useEffect(() => {
+    if (filteredAgents.length === 0) return;
+    
+    const statusGroups = groupAgentsByStatus(filteredAgents);
+    const flattenedAgents: Agent[] = [];
+    const statusOrder = ["RUNNING", "CREATING", "FINISHED", "FAILED", "CANCELLED"];
+    statusOrder.forEach(status => {
+      const groupAgents = statusGroups.get(status) || [];
+      flattenedAgents.push(...groupAgents);
+    });
+    
+    if (selectedIndex >= flattenedAgents.length && flattenedAgents.length > 0) {
+      setSelectedIndex(Math.max(0, flattenedAgents.length - 1));
+    }
+  }, [filteredAgents, selectedIndex]);
+
+  // Poll status for active agents (CREATING or RUNNING)
+  useEffect(() => {
+    // Find agents that need polling (use all agents, not filtered, so we poll even when filtered)
+    const activeAgents = agents.filter(
+      (agent) => agent.status === "CREATING" || agent.status === "RUNNING"
+    );
+
+    // If no active agents, clear any existing polling
+    if (activeAgents.length === 0) {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
+      return;
+    }
+
+    // Function to refresh statuses for active agents
+    const refreshActiveAgentStatuses = async () => {
+      try {
+        // Fetch fresh status for each active agent
+        const statusPromises = activeAgents.map((agent) =>
+          apiClient.getAgentStatus(agent.id).catch((err) => {
+            // If fetching fails, return null to skip updating that agent
+            console.error(`Failed to fetch status for agent ${agent.id}:`, err);
+            return null;
+          })
+        );
+
+        const updatedAgents = await Promise.all(statusPromises);
+        
+        // Update agents state with new statuses
+        setAgents((currentAgents) => {
+          const agentMap = new Map(currentAgents.map((a) => [a.id, a]));
+          
+          updatedAgents.forEach((updatedAgent) => {
+            if (updatedAgent) {
+              agentMap.set(updatedAgent.id, updatedAgent);
+            }
+          });
+          
+          return Array.from(agentMap.values());
+        });
+      } catch (err) {
+        // Silently handle errors during polling to avoid disrupting the UI
+        console.error("Error polling agent statuses:", err);
+      }
+    };
+
+    // Poll every 5 seconds
+    pollingIntervalRef.current = setInterval(refreshActiveAgentStatuses, 5000);
+
+    // Cleanup on unmount or when active agents change
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
+    };
+  }, [agents, apiClient]);
 
   useInput(async (input: string, key: InputKey) => {
     if (input === "q") {
       onBack();
-      } else if (input === "r") {
+    } else if (input === "r") {
+      // Refresh
       setExpandedAgentId(null);
       setPrevCursors([]);
       setCurrentPageCursor(undefined);
-        loadAgents(undefined, agentsPerView);
+      loadAgents(undefined, agentsPerView);
       setSelectedIndex(0);
+    } else if (input === "1") {
+      // Filter by RUNNING
+      setStatusFilter("RUNNING");
+      setSelectedIndex(0);
+      setExpandedAgentId(null);
+    } else if (input === "2") {
+      // Filter by CREATING
+      setStatusFilter("CREATING");
+      setSelectedIndex(0);
+      setExpandedAgentId(null);
+    } else if (input === "3") {
+      // Filter by FINISHED
+      setStatusFilter("FINISHED");
+      setSelectedIndex(0);
+      setExpandedAgentId(null);
+    } else if (input === "4") {
+      // Filter by FAILED
+      setStatusFilter("FAILED");
+      setSelectedIndex(0);
+      setExpandedAgentId(null);
+    } else if (input === "5") {
+      // Filter by CANCELLED
+      setStatusFilter("CANCELLED");
+      setSelectedIndex(0);
+      setExpandedAgentId(null);
+    } else if (input === "a" || input === "A") {
+      // Show all statuses
+      setStatusFilter(null);
+      setSelectedIndex(0);
+      setExpandedAgentId(null);
     } else if (key.leftArrow && prevCursors.length > 0) {
       // Go to previous page
       const newPrevCursors = [...prevCursors];
@@ -188,7 +482,7 @@ export function AgentList({ apiClient, onBack, repositoryFilter }: AgentListProp
       setSelectedIndex((prev) => prev - 1);
     } else if (key.downArrow) {
       // Create flattened list for navigation
-      const statusGroups = groupAgentsByStatus(agents);
+      const statusGroups = groupAgentsByStatus(filteredAgents);
       const flattenedAgents: Agent[] = [];
       const statusOrder = ["RUNNING", "CREATING", "FINISHED", "FAILED", "CANCELLED"];
       statusOrder.forEach(status => {
@@ -202,7 +496,7 @@ export function AgentList({ apiClient, onBack, repositoryFilter }: AgentListProp
       }
     } else if (key.return) {
       // Create flattened list for selection
-      const statusGroups = groupAgentsByStatus(agents);
+      const statusGroups = groupAgentsByStatus(filteredAgents);
       const flattenedAgents: Agent[] = [];
       const statusOrder = ["RUNNING", "CREATING", "FINISHED", "FAILED", "CANCELLED"];
       statusOrder.forEach(status => {
@@ -253,27 +547,40 @@ export function AgentList({ apiClient, onBack, repositoryFilter }: AgentListProp
     );
   }
 
-  if (agents.length === 0) {
+  if (filteredAgents.length === 0) {
     return (
       <Box padding={1} flexDirection="column">
         <Box marginBottom={1}>
-          <Text color="gray">No agents found yet</Text>
+          <Text color="gray">
+            {statusFilter 
+              ? `No agents found with status: ${getStatusDisplay(statusFilter).label}`
+              : "No agents found yet"}
+          </Text>
         </Box>
-        <Box marginBottom={1}>
-          <Text color="gray">To create your first cloud agent, run:</Text>
-        </Box>
-        <Box marginLeft={2}>
-          <Text color="cyan">cloud-agent launch --plan plan.md</Text>
-        </Box>
+        {!statusFilter && (
+          <>
+            <Box marginBottom={1}>
+              <Text color="gray">To create your first cloud agent, run:</Text>
+            </Box>
+            <Box marginLeft={2}>
+              <Text color="cyan">cloud-agent launch --plan plan.md</Text>
+            </Box>
+          </>
+        )}
+        {statusFilter && (
+          <Box marginTop={1}>
+            <Text color="gray">Press 'a' to show all agents</Text>
+          </Box>
+        )}
         <Box marginTop={1}>
           <Text color="gray">Press 'q' to go back</Text>
         </Box>
       </Box>
     );
   }
-
+  
   // Group agents by status
-  const statusGroups = groupAgentsByStatus(agents);
+  const statusGroups = groupAgentsByStatus(filteredAgents);
   
   // Create flattened list for selection tracking
   const flattenedAgents: Agent[] = [];
@@ -286,28 +593,35 @@ export function AgentList({ apiClient, onBack, repositoryFilter }: AgentListProp
   // Get selected agent from flattened list
   const selectedAgent = flattenedAgents[selectedIndex];
   
-  const separatorWidth = Math.max(20, terminalWidth - 4);
+  // Safe width for bordered boxes - default to undefined if too narrow
+  const getBorderedBoxWidth = (baseWidth: number): number | undefined => {
+    const computed = clampWidth(baseWidth, 10);
+    return computed >= 10 ? computed : undefined;
+  };
   
   return (
-    <Box flexDirection="column" padding={1} width={terminalWidth}>
+    <Box flexDirection="column" padding={layoutBreakpoint === "compact" ? 0 : 1} width={terminalWidth}>
       <Box marginBottom={1} flexDirection="row" alignItems="center">
         <Text bold>
           Your Cloud Agents
-          {agents.length > 0 && (
-            <Text color="gray"> ({agents.length} {agents.length === 1 ? 'agent' : 'agents'})</Text>
+          {filteredAgents.length > 0 && (
+            <Text color="gray"> ({filteredAgents.length} {filteredAgents.length === 1 ? 'agent' : 'agents'})</Text>
+          )}
+          {statusFilter && (
+            <Text color="cyan"> • Filter: {getStatusDisplay(statusFilter).label}</Text>
           )}
           {repositoryFilter && (
             <Text color="gray"> • {repositoryFilter}</Text>
           )}
         </Text>
-        {loading && agents.length > 0 && (
+        {loading && filteredAgents.length > 0 && (
           <Box marginLeft={2}>
             <Spinner text="Refreshing..." />
           </Box>
         )}
       </Box>
       <Box marginBottom={1}>
-        <Text color="gray">{"─".repeat(separatorWidth)}</Text>
+        <Text color="gray">{getSeparator(separatorWidth)}</Text>
       </Box>
 
       {/* Status-grouped sections */}
@@ -324,7 +638,7 @@ export function AgentList({ apiClient, onBack, repositoryFilter }: AgentListProp
             <Box marginBottom={0}>
               <Text color="gray">┌─ </Text>
               <Text color={statusDisplay.color} bold>{sectionTitle}</Text>
-              <Text color="gray"> {"─".repeat(Math.max(1, separatorWidth - sectionTitle.length - 5))}┐</Text>
+              <Text color="gray"> {getSeparator(Math.max(1, separatorWidth - sectionTitle.length - 5))}┐</Text>
             </Box>
             
             {/* Agents in this status group */}
@@ -339,46 +653,69 @@ export function AgentList({ apiClient, onBack, repositoryFilter }: AgentListProp
                 .replace(/^https?:\/\/(www\.)?github\.com\//, "")
                 .replace(/\.git$/, "");
               
-              const nameMaxWidth = Math.max(30, Math.floor(terminalWidth * 0.4));
-              const repoMaxWidth = Math.max(25, Math.floor(terminalWidth * 0.35));
+              // Use responsive column widths
+              const nameMaxWidth = clampWidth(columnLayout.nameWidth);
+              const repoMaxWidth = clampWidth(columnLayout.repoWidth);
+              
+              // URL truncation: allow wrapping below 60 columns, otherwise truncate
+              const urlMaxWidth = terminalWidth >= 60 
+                ? clampWidth(terminalWidth - 15)
+                : undefined; // undefined allows wrapping
               
               const agentContent = (
                 <Box flexDirection="column">
                   {/* Main agent row */}
-                  <Box flexDirection="row">
-                    <Box>
-                      <Text color={isSelected ? "cyan" : statusDisplay.color}>
-                        {statusDisplay.symbol} {isExpanded ? agent.name : truncate(agent.name, nameMaxWidth)}
-                      </Text>
+                  {columnLayout.stacked ? (
+                    // Stacked layout for narrow terminals
+                    <Box flexDirection="column">
+                      <Box>
+                        <Text color={isSelected ? "cyan" : statusDisplay.color}>
+                          {statusDisplay.symbol} {isExpanded ? agent.name : truncate(agent.name, nameMaxWidth)}
+                        </Text>
+                      </Box>
+                      <Box marginTop={0}>
+                        <Text color={isSelected ? "cyan" : undefined}>
+                          {isExpanded ? agent.source.repository : truncate(compactRepo, repoMaxWidth)}
+                        </Text>
+                      </Box>
                     </Box>
-                    <Box marginLeft={2}>
-                      <Text color={isSelected ? "cyan" : undefined}>
-                        {isExpanded ? agent.source.repository : truncate(compactRepo, repoMaxWidth)}
-                      </Text>
+                  ) : (
+                    // Side-by-side layout for wider terminals
+                    <Box flexDirection="row">
+                      <Box>
+                        <Text color={isSelected ? "cyan" : statusDisplay.color}>
+                          {statusDisplay.symbol} {isExpanded ? agent.name : truncate(agent.name, nameMaxWidth)}
+                        </Text>
+                      </Box>
+                      <Box marginLeft={2}>
+                        <Text color={isSelected ? "cyan" : undefined}>
+                          {isExpanded ? agent.source.repository : truncate(compactRepo, repoMaxWidth)}
+                        </Text>
+                      </Box>
                     </Box>
-                  </Box>
+                  )}
                   
                   {/* Preview URL */}
-                  <Box marginLeft={3}>
+                  <Box marginLeft={columnLayout.stacked ? 0 : 3} marginTop={columnLayout.stacked ? 0 : 0}>
                     <Text color="cyan" dimColor>
-                      Preview: {truncate(agent.target.url, terminalWidth - 15)}
+                      Preview: {urlMaxWidth ? truncate(agent.target.url, urlMaxWidth) : agent.target.url}
                     </Text>
                   </Box>
                   
                   {/* PR URL if available */}
                   {agent.target.prUrl && (
-                    <Box marginLeft={3}>
+                    <Box marginLeft={columnLayout.stacked ? 0 : 3} marginTop={0}>
                       <Text color="cyan" dimColor>
-                        PR: {truncate(agent.target.prUrl, terminalWidth - 8)}
+                        PR: {urlMaxWidth ? truncate(agent.target.prUrl, clampWidth(terminalWidth - 8)) : agent.target.prUrl}
                       </Text>
                     </Box>
                   )}
                   
                   {/* Expanded details */}
                   {isExpanded && (
-                    <Box marginLeft={2} marginTop={1} flexDirection="column">
+                    <Box marginLeft={columnLayout.stacked ? 0 : 2} marginTop={1} flexDirection="column">
                       <Box marginTop={0} marginBottom={1}>
-                        <Text color="gray">{"─".repeat(Math.max(20, separatorWidth - 8))}</Text>
+                        <Text color="gray">{getSeparator(Math.max(20, separatorWidth - 8))}</Text>
                       </Box>
                       <Box marginTop={0} flexDirection="column">
                         <Box marginBottom={1}>
@@ -466,14 +803,15 @@ export function AgentList({ apiClient, onBack, repositoryFilter }: AgentListProp
               
               // Wrap selected item in a box with border
               if (isSelected) {
+                const borderedWidth = getBorderedBoxWidth(terminalWidth - 6);
                 return (
                   <Box key={agent.id} marginTop={0} marginBottom={0}>
                     <Box 
                       borderStyle="round" 
                       borderColor="cyan" 
-                      paddingX={1} 
+                      paddingX={columnLayout.stacked ? 0 : 1} 
                       paddingY={isExpanded ? 1 : 0}
-                      width={terminalWidth - 6}
+                      width={borderedWidth}
                     >
                       {agentContent}
                     </Box>
@@ -483,7 +821,7 @@ export function AgentList({ apiClient, onBack, repositoryFilter }: AgentListProp
               
               return (
                 <Box key={agent.id} marginTop={0} marginBottom={0}>
-                  <Box marginLeft={2}>
+                  <Box marginLeft={columnLayout.stacked ? 0 : 2}>
                     {agentContent}
                   </Box>
                 </Box>
@@ -492,7 +830,7 @@ export function AgentList({ apiClient, onBack, repositoryFilter }: AgentListProp
             
             {/* Section footer */}
             <Box marginTop={0}>
-              <Text color="gray">└{"─".repeat(separatorWidth - 2)}┘</Text>
+              <Text color="gray">└{getSeparator(Math.max(3, separatorWidth - 2))}┘</Text>
             </Box>
           </Box>
         );
@@ -502,7 +840,7 @@ export function AgentList({ apiClient, onBack, repositoryFilter }: AgentListProp
       <Box marginTop={2} flexDirection="column">
         <Box marginBottom={1}>
           <Text color="gray" dimColor>
-            Page {prevCursors.length + 1} • Showing {agents.length} {agents.length === 1 ? 'agent' : 'agents'}
+            Page {prevCursors.length + 1} • Showing {filteredAgents.length} {filteredAgents.length === 1 ? 'agent' : 'agents'} • {getLayoutLabel(layoutBreakpoint)}
           </Text>
         </Box>
         <Box marginBottom={1} flexDirection="row" gap={2}>
@@ -516,6 +854,11 @@ export function AgentList({ apiClient, onBack, repositoryFilter }: AgentListProp
         <Box marginTop={0} marginBottom={0}>
           <Text color="gray" dimColor>
             ↑↓ Navigate • Enter Expand • Enter twice Open • q Back • r Refresh
+          </Text>
+        </Box>
+        <Box marginTop={0} marginBottom={0}>
+          <Text color="gray" dimColor>
+            Status filters: 1=RUNNING 2=CREATING 3=FINISHED 4=FAILED 5=CANCELLED a=All
           </Text>
         </Box>
       </Box>
