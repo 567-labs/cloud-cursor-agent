@@ -7,6 +7,8 @@
 
 import React from "react";
 import { render } from "ink";
+import { createInterface } from "node:readline/promises";
+import { stdin as input, stdout as output } from "node:process";
 import { CloudAgentsApiClient, ApiError } from "./src/api/client.js";
 import { AgentList } from "./src/components/AgentList.js";
 import { AgentStatus } from "./src/components/AgentStatus.js";
@@ -62,7 +64,12 @@ function parseArgs(): CliArgs {
       parsed.help = true;
     } else if (!arg.startsWith("--") && !parsed.command) {
       parsed.command = arg;
-    } else if (!arg.startsWith("--") && parsed.command === "status" && !parsed.agentId) {
+    } else if (
+      !arg.startsWith("--") &&
+      parsed.command &&
+      ["status", "delete", "cancel"].includes(parsed.command) &&
+      !parsed.agentId
+    ) {
       parsed.agentId = arg;
     }
   }
@@ -385,6 +392,64 @@ async function main() {
     return;
   }
 
+  const isDeleteCommand = args.command === "delete" || args.command === "cancel";
+
+  if (isDeleteCommand) {
+    if (!args.agentId) {
+      console.error("Error: Agent ID is required");
+      console.error(`Usage: cloud-agent ${args.command} <agent-id>`);
+      process.exit(1);
+    }
+
+    const { validateAgentId } = await import("./src/utils/validation.js");
+    const agentIdValidation = validateAgentId(args.agentId);
+    if (!agentIdValidation.valid) {
+      console.error(`Error: ${agentIdValidation.error}`);
+      console.error("");
+      console.error("Agent ID must look like bc_123abc (letters and numbers only, at least 5 characters after bc_).");
+      process.exit(1);
+    }
+
+    const resultVerb = args.command === "cancel" ? "cancelled" : "deleted";
+
+    if (args["non-interactive"]) {
+      try {
+        await apiClient.deleteAgent(args.agentId);
+        console.log(`Agent ${args.agentId} ${resultVerb}.`);
+      } catch (error) {
+        if (error instanceof ApiError) {
+          console.error(`Error: ${error.message}`);
+        } else if (error instanceof Error) {
+          console.error(`Error: ${error.message}`);
+        } else {
+          console.error("Error: Failed to delete agent");
+        }
+        process.exit(1);
+      }
+      return;
+    }
+
+    try {
+      const confirmed = await confirmAgentDeletion(args.agentId);
+      if (!confirmed) {
+        console.log("Deletion cancelled.");
+        return;
+      }
+      await apiClient.deleteAgent(args.agentId);
+      console.log(`✓ Agent ${args.agentId} ${resultVerb} successfully.`);
+    } catch (error) {
+      if (error instanceof ApiError) {
+        console.error(`Error: ${error.message}`);
+      } else if (error instanceof Error) {
+        console.error(`Error: ${error.message}`);
+      } else {
+        console.error("Error: Failed to delete agent");
+      }
+      process.exit(1);
+    }
+    return;
+  }
+
   // Status command: cloud-agent status <id>
   if (args.command === "status") {
     if (!args.agentId) {
@@ -492,6 +557,16 @@ function getStatusSymbol(status: string): string {
   }
 }
 
+async function confirmAgentDeletion(agentId: string): Promise<boolean> {
+  const rl = createInterface({ input, output });
+  try {
+    const answer = await rl.question(`Delete agent ${agentId}? (y/N): `);
+    return /^y(es)?$/i.test(answer.trim());
+  } finally {
+    rl.close();
+  }
+}
+
 function showHelp() {
   console.log("Cloud Agents CLI");
   console.log("");
@@ -502,6 +577,8 @@ function showHelp() {
   console.log("  launch --plan <file>    Launch an agent from a plan file");
   console.log("  list                   List all agents");
   console.log("  status <id>            Show agent status");
+  console.log("  delete <id>            Delete/cancel an agent");
+  console.log("  cancel <id>            Alias for delete");
   console.log("");
   console.log("Options:");
   console.log("  --plan <file>          Plan file to use as prompt (required for launch)");
@@ -528,6 +605,8 @@ function showHelp() {
   console.log("  bun run cloud-agent.tsx list --non-interactive  # Plain text output");
   console.log("  bun run cloud-agent.tsx status bc_abc123");
   console.log("  bun run cloud-agent.tsx status bc_abc123 --non-interactive  # Plain text output");
+  console.log("  bun run cloud-agent.tsx delete bc_abc123");
+  console.log("  bun run cloud-agent.tsx cancel bc_abc123 --non-interactive  # Plain text output");
   console.log("  bun run cloud-agent.tsx  # Interactive agent list");
   console.log("  bun run cloud-agent.tsx --non-interactive  # Show help instead of interactive list");
 }
