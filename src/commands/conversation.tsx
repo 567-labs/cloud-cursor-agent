@@ -3,13 +3,14 @@
  */
 
 import React from "react";
-import { render } from "ink";
+import { Box, render } from "ink";
 import { ApiError } from "../api/client.js";
 import type { CommandContext } from "../cli/types.js";
 import { validateAgentId } from "../utils/validation.js";
 import { AgentList } from "../components/AgentList.js";
 import { Conversation } from "../components/Conversation.js";
 import { detectRepoAndRef } from "../utils/git.js";
+import type { Agent, AgentConversation } from "../api/schemas.js";
 
 interface ConversationOptions {
   agentId?: string;
@@ -104,29 +105,105 @@ function ConversationInteractive({
   const [selectedAgentId, setSelectedAgentId] = React.useState<string | null>(
     null
   );
+  const [conversationCache, setConversationCache] = React.useState<
+    Map<string, AgentConversation>
+  >(() => new Map());
+  const [agentCache, setAgentCache] = React.useState<Map<string, Agent>>(
+    () => new Map()
+  );
+  const [refreshingAgents, setRefreshingAgents] = React.useState<Set<string>>(
+    () => new Set()
+  );
 
-  if (view === "conversation" && selectedAgentId) {
-    return (
-      <Conversation
-        apiClient={apiClient}
-        agentId={selectedAgentId}
-        onBack={() => {
-          setView("list");
-          setSelectedAgentId(null);
-        }}
-      />
-    );
-  }
+  const refreshConversation = React.useCallback(
+    async (agentId: string) => {
+      setRefreshingAgents((prev) => {
+        if (prev.has(agentId)) {
+          return prev;
+        }
+        const next = new Set(prev);
+        next.add(agentId);
+        return next;
+      });
+
+      try {
+        const [conversationData, agentData] = await Promise.all([
+          apiClient.getAgentConversation(agentId),
+          apiClient.getAgentStatus(agentId),
+        ]);
+
+        setConversationCache((prev) => {
+          const next = new Map(prev);
+          next.set(agentId, conversationData);
+          return next;
+        });
+
+        setAgentCache((prev) => {
+          const next = new Map(prev);
+          next.set(agentId, agentData);
+          return next;
+        });
+
+        return { conversation: conversationData, agent: agentData };
+      } finally {
+        setRefreshingAgents((prev) => {
+          if (!prev.has(agentId)) {
+            return prev;
+          }
+          const next = new Set(prev);
+          next.delete(agentId);
+          return next;
+        });
+      }
+    },
+    [apiClient]
+  );
 
   return (
-    <AgentList
-      apiClient={apiClient}
-      onBack={() => process.exit(0)}
-      repositoryFilter={repositoryFilter}
-      onSelectAgentForConversation={(agentId) => {
-        setSelectedAgentId(agentId);
-        setView("conversation");
-      }}
-    />
+    <>
+      <Box display={view === "list" ? "flex" : "none"} flexDirection="column">
+        <AgentList
+          apiClient={apiClient}
+          onBack={() => process.exit(0)}
+          repositoryFilter={repositoryFilter}
+          onSelectAgentForConversation={(agentId) => {
+            setSelectedAgentId(agentId);
+            setView("conversation");
+          }}
+        />
+      </Box>
+
+      <Box
+        display={view === "conversation" ? "flex" : "none"}
+        flexDirection="column"
+      >
+        {selectedAgentId && (
+          <Conversation
+            apiClient={apiClient}
+            agentId={selectedAgentId}
+            cachedConversation={conversationCache.get(selectedAgentId)}
+            cachedAgent={agentCache.get(selectedAgentId)}
+            isRefreshing={refreshingAgents.has(selectedAgentId)}
+            onRefreshRequest={(agentId) => refreshConversation(agentId)}
+            onCacheUpdate={(agentId, conversation, agent) => {
+              setConversationCache((prev) => {
+                const next = new Map(prev);
+                next.set(agentId, conversation);
+                return next;
+              });
+              setAgentCache((prev) => {
+                const next = new Map(prev);
+                next.set(agentId, agent);
+                return next;
+              });
+            }}
+            onBack={() => {
+              setView("list");
+              setSelectedAgentId(null);
+            }}
+          />
+        )}
+      </Box>
+    </>
   );
 }
