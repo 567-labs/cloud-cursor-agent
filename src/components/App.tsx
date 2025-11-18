@@ -8,6 +8,7 @@ import { Box, useApp } from "ink";
 import { MainMenu } from "./MainMenu.js";
 import { AgentList } from "./AgentList.js";
 import { AgentStatus } from "./AgentStatus.js";
+import { Conversation } from "./Conversation.js";
 import { ApiKeyInfo } from "./ApiKeyInfo.js";
 import { ModelsList } from "./ModelsList.js";
 import { InstallAgentsMd } from "./InstallAgentsMd.js";
@@ -19,6 +20,7 @@ type View =
   | "menu"
   | "list"
   | "status"
+  | "conversation"
   | "apiKeyInfo"
   | "models"
   | "installAgentsMd";
@@ -69,6 +71,10 @@ export function App({
           apiClient={apiClient}
           onBack={() => setView("menu")}
           repositoryFilter={currentRepositoryFilter}
+          onSelectAgentForConversation={(agentId) => {
+            setAgentId(agentId);
+            setView("conversation");
+          }}
         />
       )}
       {view === "status" && agentId && (
@@ -76,6 +82,16 @@ export function App({
           apiClient={apiClient}
           agentId={agentId}
           onBack={() => setView("menu")}
+        />
+      )}
+      {view === "conversation" && agentId && (
+        <Conversation
+          apiClient={apiClient}
+          agentId={agentId}
+          onBack={() => {
+            setView("list");
+            setAgentId(undefined);
+          }}
         />
       )}
       {view === "apiKeyInfo" && (

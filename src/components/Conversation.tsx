@@ -3,7 +3,7 @@
  * Displays conversation history for an agent in interactive mode
  */
 
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useCallback } from "react";
 import { Box, Text, useInput } from "ink";
 import { CloudAgentsApiClient, ApiError } from "../api/client.js";
 import { Spinner } from "./Spinner.js";
@@ -30,6 +30,9 @@ export function Conversation({
   const [agent, setAgent] = useState<Agent | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isFollowupMode, setIsFollowupMode] = useState(false);
+  const [followupText, setFollowupText] = useState("");
+  const [sendingFollowup, setSendingFollowup] = useState(false);
 
   // Calculate separator width accounting for padding
   const separatorWidth = useMemo(
@@ -42,6 +45,50 @@ export function Conversation({
     () => Math.max(5, terminalHeight - 8),
     [terminalHeight]
   );
+
+  // Memoize messages rendering to prevent flickering when typing follow-up
+  const renderedMessages = useMemo(() => {
+    if (!conversation || conversation.messages.length === 0) {
+      return (
+        <Box marginTop={1}>
+          <Text color="gray">No messages yet.</Text>
+        </Box>
+      );
+    }
+
+    return (
+      <Box flexDirection="column" height={availableHeight} overflow="hidden">
+        {conversation.messages.map((message) => (
+          <Box key={message.id} marginBottom={1} flexDirection="column">
+            <Box marginBottom={0}>
+              <Text
+                bold
+                color={message.type === "user_message" ? "green" : "blue"}
+              >
+                {message.type === "user_message" ? "You" : "Agent"}:
+              </Text>
+            </Box>
+            <Box marginTop={0}>
+              <Text>{message.text}</Text>
+            </Box>
+            {/* Display images if present */}
+            {message.images && message.images.length > 0 && (
+              <Box marginTop={1} flexDirection="column">
+                {message.images.map((image, idx) => (
+                  <Box key={idx} marginBottom={1}>
+                    <Text color="cyan" dimColor>
+                      [Image {idx + 1}: {image.dimension.width}x
+                      {image.dimension.height}]
+                    </Text>
+                  </Box>
+                ))}
+              </Box>
+            )}
+          </Box>
+        ))}
+      </Box>
+    );
+  }, [conversation, availableHeight]);
 
   useEffect(() => {
     async function loadConversation() {
@@ -70,28 +117,109 @@ export function Conversation({
     loadConversation();
   }, [agentId, apiClient]);
 
+  const handleSendFollowup = useCallback(
+    async (text: string) => {
+      if (!agent) return;
+
+      // Validate agent can receive follow-ups
+      if (
+        agent.status === "FINISHED" ||
+        agent.status === "FAILED" ||
+        agent.status === "CANCELLED"
+      ) {
+        setError(
+          `Cannot send follow-up to agent that is ${agent.status.toLowerCase()}`
+        );
+        setIsFollowupMode(false);
+        setFollowupText("");
+        return;
+      }
+
+      try {
+        setSendingFollowup(true);
+        await apiClient.addFollowup(agentId, { text });
+        setFollowupText("");
+        setIsFollowupMode(false);
+
+        // Refresh conversation and agent status
+        setLoading(true);
+        const [updatedConversation, updatedAgent] = await Promise.all([
+          apiClient.getAgentConversation(agentId),
+          apiClient.getAgentStatus(agentId),
+        ]);
+        setConversation(updatedConversation);
+        setAgent(updatedAgent);
+        setLoading(false);
+      } catch (err) {
+        setError(
+          err instanceof Error ? err.message : "Failed to send follow-up"
+        );
+        setIsFollowupMode(false);
+        setFollowupText("");
+        setSendingFollowup(false);
+      }
+    },
+    [agent, agentId, apiClient]
+  );
+
   useInput((input, key) => {
-    if (input === "q" || key.escape) {
-      onBack();
-    } else if (input === "r") {
-      // Refresh conversation
-      setLoading(true);
-      apiClient
-        .getAgentConversation(agentId)
-        .then((data) => {
-          setConversation(data);
-          setLoading(false);
-        })
-        .catch((err) => {
-          setError(
-            err instanceof Error
-              ? err.message
-              : "Failed to refresh conversation"
-          );
-          setLoading(false);
-        });
+    if (isFollowupMode) {
+      // Follow-up input mode
+      if (key.escape || (key.ctrl && input === "c")) {
+        // Cancel follow-up
+        setIsFollowupMode(false);
+        setFollowupText("");
+      } else if (key.return) {
+        // Send follow-up
+        if (followupText.trim() && !sendingFollowup) {
+          handleSendFollowup(followupText.trim());
+        }
+      } else if (key.delete || key.backspace) {
+        // Delete character
+        setFollowupText((prev) => prev.slice(0, -1));
+      } else if (!key.ctrl && !key.meta && input.length === 1) {
+        // Add character
+        setFollowupText((prev) => prev + input);
+      }
+    } else {
+      // Normal mode
+      if (input === "q" || key.escape) {
+        onBack();
+      } else if (input === "r") {
+        // Refresh conversation
+        setLoading(true);
+        apiClient
+          .getAgentConversation(agentId)
+          .then((data) => {
+            setConversation(data);
+            setLoading(false);
+          })
+          .catch((err) => {
+            setError(
+              err instanceof Error
+                ? err.message
+                : "Failed to refresh conversation"
+            );
+            setLoading(false);
+          });
+      } else if (input === "f" || input === "F") {
+        // Enter follow-up mode (only if agent is RUNNING or CREATING)
+        if (
+          agent &&
+          (agent.status === "RUNNING" || agent.status === "CREATING")
+        ) {
+          setIsFollowupMode(true);
+          setFollowupText("");
+        }
+      }
     }
   });
+
+  const statusDisplay = agent
+    ? getStatusDisplay(agent.status)
+    : { symbol: "?", label: "Unknown", color: "gray" as const };
+
+  // Memoize messages rendering to prevent flickering when typing follow-up
 
   if (loading) {
     return (
@@ -122,8 +250,6 @@ export function Conversation({
       </Box>
     );
   }
-
-  const statusDisplay = getStatusDisplay(agent.status);
 
   return (
     <Box flexDirection="column" padding={1} width={terminalWidth}>
@@ -158,36 +284,43 @@ export function Conversation({
         <Text color="gray">{"─".repeat(separatorWidth)}</Text>
       </Box>
 
-      {/* Messages */}
-      {conversation.messages.length === 0 ? (
-        <Box marginTop={1}>
-          <Text color="gray">No messages yet.</Text>
-        </Box>
-      ) : (
-        <Box flexDirection="column" height={availableHeight} overflow="hidden">
-          {conversation.messages.map((message) => (
-            <Box key={message.id} marginBottom={1} flexDirection="column">
-              <Box marginBottom={0}>
-                <Text
-                  bold
-                  color={message.type === "user_message" ? "green" : "blue"}
-                >
-                  {message.type === "user_message" ? "You" : "Agent"}:
-                </Text>
-              </Box>
-              <Box marginTop={0}>
-                <Text>{message.text}</Text>
-              </Box>
-            </Box>
-          ))}
+      {/* Messages - memoized to prevent flickering */}
+      {renderedMessages}
+
+      {/* Follow-up input mode */}
+      {isFollowupMode && (
+        <Box marginTop={1} flexDirection="column">
+          <Box marginBottom={1}>
+            <Text color="gray">{"─".repeat(separatorWidth)}</Text>
+          </Box>
+          <Box marginBottom={1}>
+            <Text color="green" bold>
+              Follow-up:{" "}
+            </Text>
+            <Text>{followupText}</Text>
+            <Text color="gray" dimColor>
+              {sendingFollowup ? " (Sending...)" : "_"}
+            </Text>
+          </Box>
+          <Box marginTop={0}>
+            <Text color="gray" dimColor>
+              Enter to send • Esc to cancel
+            </Text>
+          </Box>
         </Box>
       )}
 
-      <Box marginTop={1}>
-        <Text color="gray" dimColor>
-          Press 'q' to go back • 'r' to refresh
-        </Text>
-      </Box>
+      {/* Footer hints */}
+      {!isFollowupMode && (
+        <Box marginTop={1}>
+          <Text color="gray" dimColor>
+            Press 'q' to go back • 'r' to refresh
+            {agent &&
+              (agent.status === "RUNNING" || agent.status === "CREATING") &&
+              " • 'f' to send follow-up"}
+          </Text>
+        </Box>
+      )}
     </Box>
   );
 }

@@ -139,6 +139,8 @@ export interface ConversationMessage {
   type: MessageType;
   /** Message text content */
   text: string;
+  /** Optional images attached to the message */
+  images?: PromptImage[];
 }
 
 /**

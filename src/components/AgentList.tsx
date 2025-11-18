@@ -375,7 +375,7 @@ export function AgentList({
         hasNextPage={!!nextCursor}
         layoutBreakpoint={layoutMetrics.breakpoint}
         openPrUrl={openPrUrl}
-        showConversationHint={!!onSelectAgentForConversation}
+        showConversationHint={true}
       />
     </Box>
   );
