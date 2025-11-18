@@ -14,6 +14,8 @@ import { executeConversation } from "./conversation.js";
 import { executeOpen } from "./open.js";
 import { executeDelete } from "./delete.js";
 import { executeBatchDelete } from "./batch-delete.js";
+import { executeMe } from "./me.js";
+import { executeListModels } from "./list-models.js";
 
 /**
  * Register all CLI commands with a Commander.js program instance.
@@ -195,5 +197,21 @@ export function registerCommands(
         limit: options.limit ? parseInt(options.limit, 10) : undefined,
         dir: options.dir,
       });
+    });
+
+  // Me command
+  program
+    .command("me")
+    .description("Show API key information")
+    .action(async () => {
+      await executeMe(context);
+    });
+
+  // List Models command
+  program
+    .command("list-models")
+    .description("List available models for cloud agents")
+    .action(async () => {
+      await executeListModels(context);
     });
 }

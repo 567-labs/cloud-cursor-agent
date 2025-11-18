@@ -8,9 +8,11 @@ import { Box, useApp } from "ink";
 import { MainMenu } from "./MainMenu.js";
 import { AgentList } from "./AgentList.js";
 import { AgentStatus } from "./AgentStatus.js";
+import { ApiKeyInfo } from "./ApiKeyInfo.js";
+import { ModelsList } from "./ModelsList.js";
 import type { CloudAgentsApiClient } from "../api/client.js";
 
-type View = "menu" | "list" | "status";
+type View = "menu" | "list" | "status" | "apiKeyInfo" | "models";
 
 interface AppProps {
   apiClient: CloudAgentsApiClient;
@@ -46,6 +48,8 @@ export function App({
             setCurrentRepositoryFilter(repositoryFilter);
             setView("list");
           }}
+          onSelectApiKeyInfo={() => setView("apiKeyInfo")}
+          onSelectListModels={() => setView("models")}
           onExit={() => exit()}
         />
       )}
@@ -62,6 +66,12 @@ export function App({
           agentId={agentId}
           onBack={() => setView("menu")}
         />
+      )}
+      {view === "apiKeyInfo" && (
+        <ApiKeyInfo apiClient={apiClient} onBack={() => setView("menu")} />
+      )}
+      {view === "models" && (
+        <ModelsList apiClient={apiClient} onBack={() => setView("menu")} />
       )}
     </Box>
   );

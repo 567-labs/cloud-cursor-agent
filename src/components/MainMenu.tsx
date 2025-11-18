@@ -10,12 +10,16 @@ import { useApp } from "ink";
 interface MainMenuProps {
   onSelectListAgentsAll: () => void;
   onSelectListAgentsRepo: () => void;
+  onSelectApiKeyInfo: () => void;
+  onSelectListModels: () => void;
   onExit: () => void;
 }
 
 export function MainMenu({
   onSelectListAgentsAll,
   onSelectListAgentsRepo,
+  onSelectApiKeyInfo,
+  onSelectListModels,
   onExit,
 }: MainMenuProps) {
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -26,6 +30,8 @@ export function MainMenu({
   const options = [
     { label: "List Agents (This Repo)", action: onSelectListAgentsRepo },
     { label: "List Agents (All)", action: onSelectListAgentsAll },
+    { label: "API Key Info", action: onSelectApiKeyInfo },
+    { label: "List Models", action: onSelectListModels },
     {
       label: "Exit",
       action: () => {

@@ -87,6 +87,8 @@ async function main() {
       "open",
       "delete",
       "batch-delete",
+      "me",
+      "list-models",
     ].includes(args[0]);
 
   // Only show interactive menu if:
