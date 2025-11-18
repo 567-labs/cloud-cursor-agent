@@ -198,14 +198,24 @@ export function AgentList({ apiClient, onBack, repositoryFilter }: AgentListProp
   }, [stdout]);
   
   // Memoized layout metrics
+  // Header: title line + marginBottom + separator line + marginBottom = 4 lines
   const headerHeight = 4;
-  const footerHeight = 4;
-  const paddingHeight = 2;
+  // Footer: marginTop (2) + pagination line + marginBottom + hints line = 5 lines
+  const footerHeight = 5;
   const chromePadding = 4; // Padding for borders and margins
   
+  const layoutBreakpoint = useMemo(() => {
+    return getLayoutBreakpoint(terminalWidth);
+  }, [terminalWidth]);
+  
+  // Main Box padding: 1 top + 1 bottom = 2 lines (when not compact)
+  const mainBoxPadding = useMemo(() => {
+    return layoutBreakpoint === "compact" ? 0 : 2;
+  }, [layoutBreakpoint]);
+  
   const availableHeight = useMemo(() => {
-    return Math.max(5, terminalHeight - headerHeight - footerHeight - paddingHeight);
-  }, [terminalHeight]);
+    return Math.max(5, terminalHeight - headerHeight - footerHeight - mainBoxPadding);
+  }, [terminalHeight, mainBoxPadding]);
   
   const agentsPerView = useMemo(() => {
     return Math.max(3, Math.floor(availableHeight / 3));
@@ -213,10 +223,6 @@ export function AgentList({ apiClient, onBack, repositoryFilter }: AgentListProp
   
   const availableContentWidth = useMemo(() => {
     return clampWidth(terminalWidth - chromePadding);
-  }, [terminalWidth]);
-  
-  const layoutBreakpoint = useMemo(() => {
-    return getLayoutBreakpoint(terminalWidth);
   }, [terminalWidth]);
   
   const separatorWidth = useMemo(() => {
