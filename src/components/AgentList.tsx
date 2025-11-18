@@ -606,10 +606,10 @@ export function AgentList({ apiClient, onBack, repositoryFilter }: AgentListProp
       setExpandedAgentId(null);
       loadAgents(nextCursor, agentsPerView);
       setSelectedIndex(0);
-    } else if (key.upArrow && selectedIndex > 0) {
+    } else if ((key.upArrow || input === "k") && selectedIndex > 0) {
       setExpandedAgentId(null); // Collapse when navigating
       setSelectedIndex((prev) => prev - 1);
-    } else if (key.downArrow) {
+    } else if (key.downArrow || input === "j") {
       if (selectedIndex < flattenedAgents.length - 1) {
         setExpandedAgentId(null); // Collapse when navigating
         setSelectedIndex((prev) => prev + 1);
@@ -721,7 +721,7 @@ export function AgentList({ apiClient, onBack, repositoryFilter }: AgentListProp
   }
   const footerHintParts = [
     ...paginationHintParts,
-    "↑↓ Navigate",
+    "↑↓/jk Navigate",
     "Enter Expand",
     `Enter twice Open ${openPrUrl ? "PR" : "Agent"}`,
     "q Back",

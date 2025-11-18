@@ -5,7 +5,12 @@ AI-powered assistants that work on GitHub repositories. They read code, make cha
 ## Quick Start
 
 ```bash
+# If API key is in .zshrc, source it first
+source ~/.zshrc
+
+# Or set it directly
 export CURSOR_API_KEY=your_api_key  # Get from https://cursor.com/settings
+
 bun run cloud-agent.tsx launch --plan plan/bug-fixes/type-errors.md
 # Output: https://cursor.com/agents?id=bc_abc123
 ```
@@ -15,11 +20,7 @@ bun run cloud-agent.tsx launch --plan plan/bug-fixes/type-errors.md
 ```bash
 bun run cloud-agent.tsx launch --plan <file>
 ```
-
-Creates PR automatically. Plan files should be organized in `plan/{feature}/{plan}.md` structure:
-
-- `plan/bug-fixes/type-errors.md`
-- `plan/bug-fixes/add-error-handling.md`
+- `plan/vim-support/vim-keybindings.md`
 
 ### Model Selection
 
@@ -157,11 +158,9 @@ When multiple changes modify the same file, combine them into a single plan:
 
 ```bash
 # Phase 1: Single plan (modifies AgentList.tsx)
-AGENT_ID=$(bun run cloud-agent.tsx launch --plan plan/refactor-phase1-utilities.md)
+bun run cloud-agent.tsx launch --plan plan/refactor-phase1-utilities.md
 
-# Wait for Phase 1 to complete using watch command
-bun run cloud-agent.tsx watch $AGENT_ID --verbose
-
+# Wait for Phase 1 to complete, then launch Phase 2
 # Phase 2: Single plan (modifies AgentList.tsx again)
 bun run cloud-agent.tsx launch --plan plan/refactor-phase2-components.md
 
@@ -230,7 +229,7 @@ bun run cloud-agent.tsx batch-delete --repo https://github.com/org/repo --force
 
 ## Troubleshooting
 
-**API Key:** `export CURSOR_API_KEY=your_key` ([get key](https://cursor.com/settings)). If not found, try `source ~/.zshrc`
+**API Key:** If the API key is not set, try `source ~/.zshrc` first (if your key is stored there). Otherwise, set it with `export CURSOR_API_KEY=your_key` ([get key](https://cursor.com/settings))
 
 **Plan File Not Found:** Check path, use absolute path if needed. For heredoc (`--plan -`), ensure stdin is piped with `<<'EOF'`
 

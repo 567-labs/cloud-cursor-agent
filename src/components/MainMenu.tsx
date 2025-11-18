@@ -26,9 +26,9 @@ export function MainMenu({ onSelectListAgentsAll, onSelectListAgentsRepo, onExit
   ];
 
   useInput((input, key) => {
-    if (key.upArrow) {
+    if (key.upArrow || input === "k") {
       setSelectedIndex((prev) => (prev > 0 ? prev - 1 : options.length - 1));
-    } else if (key.downArrow) {
+    } else if (key.downArrow || input === "j") {
       setSelectedIndex((prev) => (prev < options.length - 1 ? prev + 1 : 0));
     } else if (key.return) {
       options[selectedIndex].action();
@@ -72,7 +72,7 @@ export function MainMenu({ onSelectListAgentsAll, onSelectListAgentsRepo, onExit
         ))}
       </Box>
       <Box marginTop={2}>
-        <Text color="gray">Use ↑↓ to navigate, Enter to select</Text>
+        <Text color="gray">Use ↑↓ or j/k to navigate, Enter to select</Text>
       </Box>
     </Box>
   );
