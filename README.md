@@ -36,12 +36,14 @@ cloud-agent launch --plan <PLAN_FILE>
 ```
 
 This will:
+
 - Auto-detect the repository and ref from your current git directory
 - Launch the agent in the background
 - Output only the agent URL
 - Exit immediately (non-blocking)
 
 **Options:**
+
 - `--plan <file>` - Plan file to use as prompt (required)
 - `--repo <url>` - Repository URL (auto-detected if not provided)
 - `--ref <ref>` - Git ref (branch/tag/commit) (auto-detected if not provided)
@@ -82,6 +84,7 @@ cloud-agent list --non-interactive
 **Note**: The list command automatically filters agents to show only those for the current repository (detected from git). If you're not in a git repository, it will show all agents.
 
 **Interactive mode keyboard shortcuts:**
+
 - `↑` / `↓` - Navigate agents
 - `q` - Return/exit
 - `r` - Refresh list
@@ -107,6 +110,7 @@ cloud-agent status bc_abc123 --non-interactive
 ```
 
 **Interactive mode keyboard shortcuts:**
+
 - `q` - Go back/exit
 
 ### Interactive Mode
@@ -118,10 +122,12 @@ cloud-agent
 ```
 
 This opens the agent list directly, filtered to the current repository. You can:
+
 - View agents for the current repository (auto-detected from git)
 - Navigate through the list
 
 **Keyboard shortcuts:**
+
 - `↑` / `↓` - Navigate agents
 - `q` - Exit
 - `r` - Refresh list
@@ -173,7 +179,7 @@ bun run verify
 
 ## Project Structure
 
-```
+```text
 ├── cloud-agent.tsx          # Main CLI entry point
 ├── build-cli.ts             # Build script
 ├── src/
