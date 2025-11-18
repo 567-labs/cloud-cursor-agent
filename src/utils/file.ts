@@ -7,8 +7,15 @@ import { readFile } from "fs/promises";
 import { resolve } from "path";
 
 /**
- * Strip frontmatter from markdown content
- * Frontmatter is YAML between --- delimiters at the start of the file
+ * Strip YAML frontmatter when present at the start of markdown content.
+ *
+ * Frontmatter is treated as any block wrapped in leading `---` delimiters.
+ *
+ * @param {string} content - Raw file contents read from disk.
+ * @returns {string} Content without the frontmatter block.
+ * @example
+ * stripFrontmatter("---\\ntitle: Plan\\n---\\nRest of file");
+ * // => "Rest of file"
  */
 function stripFrontmatter(content: string): string {
   const frontmatterRegex = /^---\s*\n([\s\S]*?)\n---\s*\n/;
@@ -20,12 +27,14 @@ function stripFrontmatter(content: string): string {
 }
 
 /**
- * Read a plan file and return its contents
- * Supports relative and absolute paths
- * Handles markdown files and strips frontmatter if present
- * @param filePath - Path to the file (relative or absolute)
- * @returns The file contents as a string
- * @throws Error if file cannot be read or doesn't exist
+ * Read a plan file and return its contents.
+ *
+ * Supports both relative and absolute paths, trims the result, and removes
+ * YAML frontmatter for markdown files so downstream parsing stays simple.
+ *
+ * @param {string} filePath - Path to the file (relative or absolute).
+ * @returns {Promise<string>} Resolved text contents of the plan.
+ * @throws {Error} When the file cannot be located or read.
  */
 export async function readPlanFile(filePath: string): Promise<string> {
   try {
