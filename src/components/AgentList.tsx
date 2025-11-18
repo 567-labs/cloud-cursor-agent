@@ -350,11 +350,15 @@ export function AgentList({
     }
   };
 
+  const horizontalPadding = layoutMetrics.breakpoint === "compact" ? 0 : 1;
+
   return (
     <Box
       flexDirection="column"
-      padding={layoutMetrics.breakpoint === "compact" ? 0 : 1}
+      paddingX={horizontalPadding}
+      paddingY={0}
       width={terminalWidth}
+      height={terminalHeight}
     >
       <AgentListHeader
         agentCount={filteredAgents.length}
@@ -365,7 +369,9 @@ export function AgentList({
         separatorWidth={layoutMetrics.separatorWidth}
       />
 
-      {renderGroups()}
+      <Box flexDirection="column" flexGrow={1} overflow="hidden">
+        {renderGroups()}
+      </Box>
 
       <AgentListFooter
         agentCount={filteredAgents.length}

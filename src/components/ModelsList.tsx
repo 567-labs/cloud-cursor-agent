@@ -29,9 +29,10 @@ export function ModelsList({ apiClient, onBack }: ModelsListProps) {
   );
 
   // Calculate available height accounting for header (2 lines), separator (1 line),
-  // tip text (2 lines), footer (1 line), and padding (2 lines) = 8 lines total
+  // tip text (2 lines), footer (1 line), and padding (2 lines)
+  // Plus safety buffer for margins and potential wrapping (approx 20 lines total)
   const availableHeight = useMemo(
-    () => Math.max(5, terminalHeight - 8),
+    () => Math.max(5, terminalHeight - 20),
     [terminalHeight]
   );
 

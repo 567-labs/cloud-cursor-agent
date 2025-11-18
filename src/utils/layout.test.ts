@@ -84,7 +84,7 @@ describe("calculateLayoutMetrics", () => {
     expect(metrics.availableContentWidth).toBeGreaterThan(0);
     expect(metrics.separatorWidth).toBeGreaterThan(0);
     expect(metrics.availableHeight).toBeGreaterThan(0);
-    expect(metrics.agentsPerView).toBeGreaterThanOrEqual(3);
+    expect(metrics.agentsPerView).toBeGreaterThanOrEqual(2);
     expect(metrics.mainBoxPadding).toBe(2);
   });
 
@@ -112,8 +112,8 @@ describe("calculateLayoutMetrics", () => {
   });
 
   test("respects custom headerHeight", () => {
-    const defaultMetrics = calculateLayoutMetrics(100, 30);
-    const customMetrics = calculateLayoutMetrics(100, 30, 4, 6);
+    const defaultMetrics = calculateLayoutMetrics(100, 60);
+    const customMetrics = calculateLayoutMetrics(100, 60, 4, 6);
 
     expect(customMetrics.availableHeight).not.toBe(
       defaultMetrics.availableHeight
@@ -121,17 +121,17 @@ describe("calculateLayoutMetrics", () => {
   });
 
   test("respects custom footerHeight", () => {
-    const defaultMetrics = calculateLayoutMetrics(100, 30);
-    const customMetrics = calculateLayoutMetrics(100, 30, 4, 4, 8);
+    const defaultMetrics = calculateLayoutMetrics(100, 60);
+    const customMetrics = calculateLayoutMetrics(100, 60, 4, 4, 8);
 
     expect(customMetrics.availableHeight).not.toBe(
       defaultMetrics.availableHeight
     );
   });
 
-  test("ensures minimum agentsPerView of 3", () => {
+  test("ensures minimum agentsPerView of 2", () => {
     const metrics = calculateLayoutMetrics(50, 10);
-    expect(metrics.agentsPerView).toBeGreaterThanOrEqual(3);
+    expect(metrics.agentsPerView).toBeGreaterThanOrEqual(2);
   });
 
   test("ensures minimum availableHeight of 5", () => {

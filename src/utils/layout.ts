@@ -183,11 +183,23 @@ export function calculateLayoutMetrics(
 ): LayoutMetrics {
   const breakpoint = getLayoutBreakpoint(terminalWidth);
   const mainBoxPadding = breakpoint === "compact" ? 0 : 2;
+  // Reserve space for group chrome (headers + separators). With up to 6 status
+  // groups this can easily consume ~3 lines each.
+  const groupOverhead = 18;
+
   const availableHeight = Math.max(
     5,
-    terminalHeight - headerHeight - footerHeight - mainBoxPadding
+    terminalHeight -
+      headerHeight -
+      footerHeight -
+      mainBoxPadding -
+      groupOverhead
   );
-  const agentsPerView = Math.max(3, Math.floor(availableHeight / 3));
+  const averageAgentRowHeight = breakpoint === "compact" ? 5 : 4;
+  const agentsPerView = Math.max(
+    2,
+    Math.floor(availableHeight / averageAgentRowHeight)
+  );
   const availableContentWidth = clampWidth(terminalWidth - chromePadding);
   const separatorWidth = clampWidth(terminalWidth - 4, 20);
 

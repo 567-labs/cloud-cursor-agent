@@ -49,11 +49,35 @@ export function Conversation({
     [terminalWidth]
   );
 
-  // Calculate available height for messages
+  const chromeLineEstimate = useMemo(() => {
+    let lines = 11; // title, separators, id, review, follow-up instructions, status
+    if (agent?.target.branchName) {
+      lines += 1;
+    }
+    if (agent?.target.prUrl) {
+      lines += 2; // PR line + checkout hint
+    }
+    lines += isFollowupMode ? 4 : 2; // follow-up input or footer hints
+    return lines;
+  }, [agent, isFollowupMode]);
+
   const availableHeight = useMemo(
-    () => Math.max(5, terminalHeight - 8),
-    [terminalHeight]
+    () => Math.max(5, terminalHeight - chromeLineEstimate),
+    [terminalHeight, chromeLineEstimate]
   );
+
+  const averageMessageLines = 4;
+  const maxVisibleMessages = Math.max(
+    1,
+    Math.floor(availableHeight / averageMessageLines)
+  );
+
+  const visibleMessages = useMemo(() => {
+    if (!conversation || conversation.messages.length === 0) {
+      return [];
+    }
+    return conversation.messages.slice(-maxVisibleMessages);
+  }, [conversation, maxVisibleMessages]);
 
   // Memoize messages rendering to prevent flickering when typing follow-up
   const renderedMessages = useMemo(() => {
@@ -66,8 +90,8 @@ export function Conversation({
     }
 
     return (
-      <Box flexDirection="column" height={availableHeight} overflow="hidden">
-        {conversation.messages.map((message) => (
+      <Box flexDirection="column">
+        {visibleMessages.map((message) => (
           <Box key={message.id} marginBottom={1} flexDirection="column">
             <Box marginBottom={0}>
               <Text
@@ -95,9 +119,17 @@ export function Conversation({
             )}
           </Box>
         ))}
+        {conversation.messages.length > visibleMessages.length && (
+          <Box marginTop={0} marginBottom={1}>
+            <Text color="gray" dimColor>
+              Showing last {visibleMessages.length} of{" "}
+              {conversation.messages.length} messages
+            </Text>
+          </Box>
+        )}
       </Box>
     );
-  }, [conversation, availableHeight]);
+  }, [conversation, visibleMessages]);
 
   useEffect(() => {
     async function loadConversation() {
@@ -258,34 +290,34 @@ export function Conversation({
   }
 
   return (
-    <Box flexDirection="column" padding={1} width={terminalWidth}>
-      <Box marginBottom={1}>
+    <Box
+      flexDirection="column"
+      paddingX={1}
+      paddingY={0}
+      width={terminalWidth}
+      height={terminalHeight}
+    >
+      <Box marginBottom={0}>
         <Text bold>Conversation</Text>
       </Box>
-      <Box marginBottom={1}>
+      <Box marginBottom={0}>
         <Text color="gray">{"─".repeat(separatorWidth)}</Text>
       </Box>
 
       {/* Agent Status */}
-      <Box marginBottom={1}>
+      <Box flexDirection="column" marginBottom={0}>
         <Text>
           <Text color="gray" dimColor>
             Agent ID:{" "}
           </Text>
           <Text>{agent.id}</Text>
         </Text>
-      </Box>
-      <Box marginBottom={1}>
         <Text color="gray" dimColor>
           Review: cloud-agent conversation {agent.id}
         </Text>
-      </Box>
-      <Box marginBottom={1}>
         <Text color="gray" dimColor>
           Follow-up: cloud-agent followup {agent.id} --messages "your message"
         </Text>
-      </Box>
-      <Box marginBottom={1}>
         <Text>
           <Text color="gray" dimColor>
             Status:{" "}
@@ -294,50 +326,44 @@ export function Conversation({
             {statusDisplay.symbol} {statusDisplay.label}
           </Text>
         </Text>
-      </Box>
-      {agent.target.branchName && (
-        <Box marginBottom={1}>
+        {agent.target.branchName && (
           <Text>
             <Text color="gray" dimColor>
               Branch:{" "}
             </Text>
             <Text color="cyan">{agent.target.branchName}</Text>
           </Text>
-        </Box>
-      )}
-      {agent.target.prUrl && (
-        <Box marginBottom={1}>
-          <Text>
-            <Text color="gray" dimColor>
-              Pull Request:{" "}
+        )}
+        {agent.target.prUrl && (
+          <>
+            <Text>
+              <Text color="gray" dimColor>
+                Pull Request:{" "}
+              </Text>
+              <Text color="cyan">{agent.target.prUrl}</Text>
             </Text>
-            <Text color="cyan">{agent.target.prUrl}</Text>
-          </Text>
-        </Box>
-      )}
-      {agent.target.prUrl && (
-        <Box marginBottom={1}>
-          <Text color="gray" dimColor>
-            Run: gh pr checkout{" "}
-            {extractPrNumber(agent.target.prUrl) || "PR_NUMBER"}
-          </Text>
-        </Box>
-      )}
+            <Text color="gray" dimColor>
+              Run: gh pr checkout{" "}
+              {extractPrNumber(agent.target.prUrl) || "PR_NUMBER"}
+            </Text>
+          </>
+        )}
+      </Box>
 
-      <Box marginBottom={1}>
+      <Box marginBottom={0}>
         <Text color="gray">{"─".repeat(separatorWidth)}</Text>
       </Box>
 
       {/* Messages - memoized to prevent flickering */}
-      {renderedMessages}
+      <Box flexDirection="column" flexGrow={1} overflow="hidden">
+        {renderedMessages}
+      </Box>
 
       {/* Follow-up input mode */}
-      {isFollowupMode && (
-        <Box marginTop={1} flexDirection="column">
-          <Box marginBottom={1}>
-            <Text color="gray">{"─".repeat(separatorWidth)}</Text>
-          </Box>
-          <Box marginBottom={1}>
+      {isFollowupMode ? (
+        <Box marginTop={0} flexDirection="column">
+          <Text color="gray">{"─".repeat(separatorWidth)}</Text>
+          <Box marginTop={0}>
             <Text color="green" bold>
               Follow-up:{" "}
             </Text>
@@ -346,17 +372,12 @@ export function Conversation({
               {sendingFollowup ? " (Sending...)" : "_"}
             </Text>
           </Box>
-          <Box marginTop={0}>
-            <Text color="gray" dimColor>
-              Enter to send • Esc to cancel
-            </Text>
-          </Box>
+          <Text color="gray" dimColor>
+            Enter to send • Esc to cancel
+          </Text>
         </Box>
-      )}
-
-      {/* Footer hints */}
-      {!isFollowupMode && (
-        <Box marginTop={1}>
+      ) : (
+        <Box marginTop={0}>
           <Text color="gray" dimColor>
             Press 'q' to go back • 'r' to refresh • 'f' to send follow-up
           </Text>
