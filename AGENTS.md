@@ -227,6 +227,152 @@ bun run cloud-agent.tsx batch-delete --repo https://github.com/org/repo --force
 
 **Status options:** `FINISHED`, `FAILED`, `CANCELLED`, `CREATING`, `RUNNING`, or `terminal` (all terminal statuses)
 
+## Writing Tests
+
+### Test Setup
+
+Tests use Bun's built-in test runner with React Testing Library for component tests. The test infrastructure is set up in `src/test/`.
+
+**Run tests:**
+```bash
+bun test                    # Run all tests
+bun test --watch           # Watch mode
+bun test --coverage        # With coverage report
+```
+
+### Test File Naming
+
+- Test files should be named `*.test.ts` or `*.test.tsx` (for React components)
+- Place test files next to the code they test, or in a `__tests__` directory
+- Example: `src/utils/formatting.test.ts` tests `src/utils/formatting.ts`
+
+### Test Structure
+
+**Utility function tests:**
+```typescript
+import { test, expect } from "bun:test";
+import { truncate } from "../utils/formatting.js";
+
+test("truncate: truncates strings longer than maxLength", () => {
+  expect(truncate("Hello World", 8)).toBe("Hello...");
+});
+```
+
+**React component tests:**
+```typescript
+import { test, expect } from "bun:test";
+import { render, screen } from "@testing-library/react";
+import { AgentItem } from "../components/AgentList/AgentItem.js";
+import { createMockAgent } from "../../test/utils.jsx";
+
+test("renders agent name with status symbol", () => {
+  const agent = createMockAgent();
+  render(<AgentItem agent={agent} {...otherProps} />);
+  expect(screen.getByText(/Test Agent/)).toBeDefined();
+});
+```
+
+**Hook tests:**
+```typescript
+import { test, expect } from "bun:test";
+import { renderHook } from "@testing-library/react";
+import { useAgentList } from "../hooks/useAgentList.js";
+import { createMockApiClient } from "../../test/utils.jsx";
+
+test("initial state: loading is true, agents empty", () => {
+  const { result } = renderHook(() => 
+    useAgentList({ apiClient: createMockApiClient(), agentsPerView: 10 })
+  );
+  expect(result.current.loading).toBe(true);
+  expect(result.current.agents).toEqual([]);
+});
+```
+
+### Using Test Utilities
+
+Import utilities from `src/test/utils.tsx`:
+
+- `createMockAgent(overrides?)` - Create a mock agent for testing
+- `createMockAgents(count, overrides?)` - Create multiple mock agents
+- `createMockApiClient()` - Create a mock API client
+- `renderWithProviders(ui, options?)` - Custom render with providers
+
+**Example:**
+```typescript
+import { createMockAgent, createMockApiClient } from "../../test/utils.jsx";
+
+const agent = createMockAgent({ 
+  status: "FINISHED",
+  name: "Custom Agent" 
+});
+```
+
+### Mocking Guidelines
+
+**Mock Ink components:**
+- Use mocks from `src/test/mocks/ink.ts` for Ink components
+- Mock `useStdout` and `useInput` hooks when testing components that use them
+- Example: `vi.mock("ink", () => import("../../test/mocks/ink.js"))`
+
+**Mock API calls:**
+- Use `createMockApiClient()` for API client mocks
+- Override specific methods as needed in tests
+- Example:
+```typescript
+const mockClient = createMockApiClient();
+mockClient.listAgents = async () => ({
+  agents: [createMockAgent()],
+  nextCursor: undefined,
+});
+```
+
+**Mock time-dependent functions:**
+- Use Bun's `jest.useFakeTimers()` or similar for time-based tests
+- Example: Testing `getRelativeTime` or status transition timeouts
+
+### Test Best Practices
+
+1. **Test one thing per test** - Each test should verify a single behavior
+2. **Use descriptive test names** - Test names should clearly describe what is being tested
+3. **Test edge cases** - Include tests for empty arrays, null values, boundary conditions
+4. **Mock external dependencies** - Mock API calls, file system, terminal interactions
+5. **Keep tests independent** - Tests should not depend on each other or shared state
+6. **Use test utilities** - Leverage `createMockAgent`, `createMockApiClient`, etc.
+7. **Test behavior, not implementation** - Focus on what the code does, not how it does it
+
+### Example Test File
+
+```typescript
+import { test, expect, describe } from "bun:test";
+import { filterAgentsByStatus } from "../utils/agentFiltering.js";
+import { createMockAgent } from "../../test/utils.jsx";
+
+describe("filterAgentsByStatus", () => {
+  test("filters agents by status correctly", () => {
+    const agents = [
+      createMockAgent({ status: "RUNNING" }),
+      createMockAgent({ status: "FINISHED" }),
+      createMockAgent({ status: "RUNNING" }),
+    ];
+    
+    const filtered = filterAgentsByStatus(agents, "RUNNING");
+    
+    expect(filtered).toHaveLength(2);
+    expect(filtered.every(a => a.status === "RUNNING")).toBe(true);
+  });
+
+  test("returns all agents when filter is null", () => {
+    const agents = [createMockAgent(), createMockAgent()];
+    const filtered = filterAgentsByStatus(agents, null);
+    expect(filtered).toEqual(agents);
+  });
+
+  test("handles empty arrays", () => {
+    expect(filterAgentsByStatus([], "RUNNING")).toEqual([]);
+  });
+});
+```
+
 ## Troubleshooting
 
 **API Key:** If the API key is not set, try `source ~/.zshrc` first (if your key is stored there). Otherwise, set it with `export CURSOR_API_KEY=your_key` ([get key](https://cursor.com/settings))

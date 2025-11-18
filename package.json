@@ -9,7 +9,10 @@
   "scripts": {
     "build": "bun run build-cli.ts",
     "dev": "bun run cloud-agent.tsx",
-    "verify": "test -f cli.js && test -x cli.js && echo '✓ Build verification: cli.js exists and is executable' || echo '✗ Build verification failed'"
+    "verify": "test -f cli.js && test -x cli.js && echo '✓ Build verification: cli.js exists and is executable' || echo '✗ Build verification failed'",
+    "test": "bun test",
+    "test:watch": "bun test --watch",
+    "test:coverage": "bun test --coverage"
   },
   "keywords": [],
   "author": "",
@@ -24,6 +27,9 @@
   },
   "devDependencies": {
     "@types/react": "^18.2.0",
-    "@types/node": "^20.0.0"
+    "@types/node": "^20.0.0",
+    "@testing-library/react": "^16.0.1",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/user-event": "^14.5.2"
   }
 }

@@ -1,0 +1,10 @@
+# Bun configuration file
+
+[test]
+# Preload test setup file
+preload = ["./src/test/setup.ts"]
+
+# Test file patterns
+# Bun will automatically discover test files matching these patterns
+# Default: **/*.{test,spec}.{js,jsx,ts,tsx}
+
