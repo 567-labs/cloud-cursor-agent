@@ -41,6 +41,14 @@ function getSeparator(width: number, minLength: number = 5): string {
   return "─".repeat(Math.max(minLength, width));
 }
 
+const DEFAULT_STATUS_ORDER: ReadonlyArray<string> = [
+  "RUNNING",
+  "CREATING",
+  "FINISHED",
+  "FAILED",
+  "CANCELLED",
+];
+
 type LayoutBreakpoint = "wide" | "medium" | "compact";
 
 function getLayoutBreakpoint(width: number): LayoutBreakpoint {
@@ -72,10 +80,9 @@ function normalizeRepositoryUrl(url: string): string {
 
 function groupAgentsByStatus(agents: Agent[]): Map<string, Agent[]> {
   const groups = new Map<string, Agent[]>();
-  const statusOrder = ["RUNNING", "CREATING", "FINISHED", "FAILED", "CANCELLED"];
   
-  // Initialize groups
-  statusOrder.forEach(status => {
+  // Initialize groups for known statuses so they preserve order later
+  DEFAULT_STATUS_ORDER.forEach(status => {
     groups.set(status, []);
   });
   
@@ -89,6 +96,20 @@ function groupAgentsByStatus(agents: Agent[]): Map<string, Agent[]> {
   });
   
   return groups;
+}
+
+function getStatusDisplayOrder(groups: Map<string, Agent[]>): string[] {
+  const knownStatusesWithData = DEFAULT_STATUS_ORDER.filter(
+    (status) => (groups.get(status)?.length ?? 0) > 0
+  );
+  const extraStatuses = Array.from(groups.entries())
+    .filter(
+      ([status, items]) =>
+        items.length > 0 && !DEFAULT_STATUS_ORDER.includes(status)
+    )
+    .map(([status]) => status)
+    .sort();
+  return [...knownStatusesWithData, ...extraStatuses];
 }
 
 function groupAgentsByRepository(agents: Agent[]): Map<string, Agent[]> {
@@ -244,6 +265,13 @@ export function AgentList({ apiClient, onBack, repositoryFilter }: AgentListProp
     }
   }, [filteredAgents, groupByRepository]);
   
+  const statusDisplayOrder = useMemo(() => {
+    if (groupByRepository) {
+      return [];
+    }
+    return getStatusDisplayOrder(groupedAgents);
+  }, [groupByRepository, groupedAgents]);
+
   // Create flattened list for selection tracking
   const flattenedAgents = useMemo(() => {
     const result: Agent[] = [];
@@ -261,15 +289,14 @@ export function AgentList({ apiClient, onBack, repositoryFilter }: AgentListProp
         result.push(...sortedByStatus);
       });
     } else {
-      // For status grouping, use existing logic
-      const statusOrder = ["RUNNING", "CREATING", "FINISHED", "FAILED", "CANCELLED"];
-      statusOrder.forEach(status => {
+      // For status grouping, iterate over dynamic status order
+      statusDisplayOrder.forEach(status => {
         const groupAgents = groupedAgents.get(status) || [];
         result.push(...groupAgents);
       });
     }
     return result;
-  }, [groupedAgents, groupByRepository]);
+  }, [groupedAgents, groupByRepository, statusDisplayOrder]);
   
   const FETCH_MULTIPLIER = 2;
 
@@ -671,6 +698,26 @@ export function AgentList({ apiClient, onBack, repositoryFilter }: AgentListProp
     const computed = clampWidth(baseWidth, 10);
     return computed >= 10 ? computed : undefined;
   };
+
+  const paginationHintParts: string[] = [];
+  if (prevCursors.length > 0) {
+    paginationHintParts.push("← Prev");
+  }
+  if (nextCursor) {
+    paginationHintParts.push("→ Next");
+  }
+  const footerHintParts = [
+    ...paginationHintParts,
+    "↑↓ Navigate",
+    "Enter Expand",
+    `Enter twice Open ${openPrUrl ? "PR" : "Agent"}`,
+    "q Back",
+    "r Refresh",
+    "Filters 1-5/a",
+    "g Group",
+    "t PR/Agent",
+  ];
+  const footerHintText = footerHintParts.join(" • ");
   
   // Helper function to render an agent item
   const renderAgentItem = (
@@ -930,8 +977,7 @@ export function AgentList({ apiClient, onBack, repositoryFilter }: AgentListProp
       ) : (
         // Status grouping
         (() => {
-          const statusOrder = ["RUNNING", "CREATING", "FINISHED", "FAILED", "CANCELLED"];
-          return statusOrder.map((status) => {
+          return statusDisplayOrder.map((status) => {
             const groupAgents = groupedAgents.get(status) || [];
             if (groupAgents.length === 0) return null;
             
@@ -978,23 +1024,8 @@ export function AgentList({ apiClient, onBack, repositoryFilter }: AgentListProp
             }
           </Text>
         </Box>
-        <Box marginBottom={1} flexDirection="row" gap={2}>
-          {prevCursors.length > 0 && (
-            <Text color="gray" dimColor>← Previous</Text>
-          )}
-          {nextCursor && (
-            <Text color="gray" dimColor>→ Next</Text>
-          )}
-        </Box>
-        <Box marginTop={0} marginBottom={0}>
-          <Text color="gray" dimColor>
-            ↑↓ Navigate • Enter Expand • Enter twice Open {openPrUrl ? "PR" : "Agent"} • q Back • r Refresh
-          </Text>
-        </Box>
-        <Box marginTop={0} marginBottom={0}>
-          <Text color="gray" dimColor>
-            Status filters: 1=RUNNING 2=CREATING 3=FINISHED 4=FAILED 5=CANCELLED a=All • g=Toggle grouping • t=Toggle PR/Agent
-          </Text>
+        <Box>
+          <Text color="gray" dimColor>{footerHintText}</Text>
         </Box>
       </Box>
     </Box>
