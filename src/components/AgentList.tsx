@@ -9,6 +9,12 @@ import { CloudAgentsApiClient, ApiError } from "../api/client.js";
 import { Spinner } from "./Spinner.js";
 import { openInBrowser } from "../utils/browser.js";
 import { getStatusDisplay, getRelativeTime } from "../utils/status.js";
+import {
+  getStatusDisplayOrder,
+  groupAgentsByRepository,
+  groupAgentsByStatus,
+  normalizeRepositoryUrl,
+} from "../utils/grouping.js";
 import type { Agent, AgentStatus } from "../api/schemas.js";
 
 interface AgentListProps {
@@ -41,14 +47,6 @@ function getSeparator(width: number, minLength: number = 5): string {
   return "─".repeat(Math.max(minLength, width));
 }
 
-const DEFAULT_STATUS_ORDER: ReadonlyArray<string> = [
-  "RUNNING",
-  "CREATING",
-  "FINISHED",
-  "FAILED",
-  "CANCELLED",
-];
-
 type LayoutBreakpoint = "wide" | "medium" | "compact";
 
 function getLayoutBreakpoint(width: number): LayoutBreakpoint {
@@ -67,73 +65,6 @@ function getLayoutLabel(breakpoint: LayoutBreakpoint): string {
       return "Compact layout";
   }
 }
-
-function normalizeRepositoryUrl(url: string): string {
-  if (!url) return "";
-  return url
-    .replace(/^https?:\/\//, "") // Remove http:// or https:// prefix
-    .replace(/\.git$/, "")
-    .replace(/\/$/, "") // Remove trailing slash
-    .toLowerCase()
-    .trim();
-}
-
-function groupAgentsByStatus(agents: Agent[]): Map<string, Agent[]> {
-  const groups = new Map<string, Agent[]>();
-  
-  // Initialize groups for known statuses so they preserve order later
-  DEFAULT_STATUS_ORDER.forEach(status => {
-    groups.set(status, []);
-  });
-  
-  // Group agents
-  agents.forEach(agent => {
-    const status = agent.status;
-    if (!groups.has(status)) {
-      groups.set(status, []);
-    }
-    groups.get(status)!.push(agent);
-  });
-  
-  return groups;
-}
-
-function getStatusDisplayOrder(groups: Map<string, Agent[]>): string[] {
-  const knownStatusesWithData = DEFAULT_STATUS_ORDER.filter(
-    (status) => (groups.get(status)?.length ?? 0) > 0
-  );
-  const extraStatuses = Array.from(groups.entries())
-    .filter(
-      ([status, items]) =>
-        items.length > 0 && !DEFAULT_STATUS_ORDER.includes(status)
-    )
-    .map(([status]) => status)
-    .sort();
-  return [...knownStatusesWithData, ...extraStatuses];
-}
-
-function groupAgentsByRepository(agents: Agent[]): Map<string, Agent[]> {
-  const groups = new Map<string, Agent[]>();
-  
-  // Group agents by repository
-  agents.forEach(agent => {
-    const repo = normalizeRepositoryUrl(agent.source.repository);
-    if (!groups.has(repo)) {
-      groups.set(repo, []);
-    }
-    groups.get(repo)!.push(agent);
-  });
-  
-  // Sort repositories alphabetically
-  const sortedRepos = Array.from(groups.keys()).sort();
-  const sortedGroups = new Map<string, Agent[]>();
-  sortedRepos.forEach(repo => {
-    sortedGroups.set(repo, groups.get(repo)!);
-  });
-  
-  return sortedGroups;
-}
-
 
 export function AgentList({ apiClient, onBack, repositoryFilter }: AgentListProps) {
   const [agents, setAgents] = useState<Agent[]>([]);
