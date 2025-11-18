@@ -4,17 +4,17 @@
  * Common utilities and helpers for writing tests.
  */
 
-import React from "react";
-import { render } from "@testing-library/react";
-import type { RenderOptions } from "@testing-library/react";
+// Only import React and Testing Library when needed (lazy imports in functions)
+// This prevents ReactDOM from loading for pure utility tests
 
 /**
  * Custom render function that includes any providers or context needed for tests
  */
-export function renderWithProviders(
-  ui: React.ReactElement,
-  options?: Omit<RenderOptions, "wrapper">
+export async function renderWithProviders(
+  ui: any,
+  options?: any
 ) {
+  const { render } = await import("@testing-library/react");
   return render(ui, options);
 }
 

@@ -96,9 +96,9 @@ export function getSeparator(width: number, minLength: number = 5): string {
 export function normalizeRepositoryUrl(url: string): string {
   if (!url) return "";
   return url
-    .replace(/^https?:\/\//, "") // Remove http:// or https:// prefix
-    .replace(/\.git$/, "")
-    .replace(/\/$/, "") // Remove trailing slash
+    .replace(/^https?:\/\//i, "") // Remove http:// or https:// prefix (case-insensitive)
+    .replace(/\/$/, "") // Remove trailing slash first
+    .replace(/\.git$/i, "") // Then remove .git suffix (case-insensitive)
     .toLowerCase()
     .trim();
 }

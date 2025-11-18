@@ -11,6 +11,7 @@ import { afterEach } from "bun:test";
 // Ink components will be mocked in individual test files as needed
 
 // Cleanup after each test
+// Note: React Testing Library cleanup is handled in component test files
 afterEach(() => {
   // Reset any global state if needed
 });
