@@ -8,14 +8,19 @@ Offload small tasks to parallel agents while you focus on your main work. Each a
 
 ## Installation
 
+Install globally from npm:
+
 ```bash
-git clone https://github.com/jxnl/cloud-cursor-agent.git
-cd cloud-cursor-agent
-bun install && bun run build
-npm run install:global
+npm install -g cloud-agent
 ```
 
-**Prerequisites:** Node.js v18+, [Bun](https://bun.sh)
+Or use without installing (requires [Bun](https://bun.sh)):
+
+```bash
+bunx cloud-agent launch --plan plan.md
+```
+
+**Prerequisites:** Node.js v18+ (for npm install) or [Bun](https://bun.sh) (for bunx)
 
 ## Setup
 
@@ -83,45 +88,25 @@ cloud-agent list-models
 
 ## Adding to Your Project's AGENTS.md
 
-Add this to your project's AGENTS.md so AI agents know how to use cloud-agent:
+Generate and append the AGENTS.md template to your project:
 
-```markdown
-# Cloud Agents
-
-Launch parallel AI agents to work on GitHub repos. Each agent creates a branch and opens a PR. **You review and merge the PRs yourself.**
-
-## Quick Start
-
-cloud-agent launch --plan plan.md
-# Output: https://cursor.com/agents?id=bc_abc123
-
-## Heredoc Syntax
-
-cloud-agent launch --plan - <<'EOF'
-fix: update error message in login handler
-
-- Change error text in src/auth/login.ts
-EOF
-
-## Critical Rule
-
-**Only launch tasks that modify completely different files.** If two plans touch the same file (even different parts), run them sequentially, not in parallel.
-
-**Parallel OK:** Plan A edits `utils.ts`, Plan B edits `api.ts`
-**NOT OK:** Plan A and B both edit `app.ts`
-
-## Useful Commands
-
-cloud-agent watch $AGENT_ID              # Block until complete
-cloud-agent conversation $AGENT_ID       # View conversation
-cloud-agent followup $AGENT_ID --messages "Add tests"
+```bash
+cloud-agent agents-md >> AGENTS.md
 ```
+
+Or view it first:
+
+```bash
+cloud-agent agents-md
+```
+
+The template includes detailed instructions on plan structure, examples, and best practices for organizing plans in a `plan/` directory.
 
 ## Development
 
 ```bash
 bun install                           # Install dependencies
-bun run dev <command>                 # Run in development mode
+bun cloud-agent.tsx <command>        # Run in development mode
 bun run build                         # Build CLI
 bun test                              # Run tests
 bun run format                        # Format code
@@ -130,9 +115,9 @@ bun run format                        # Format code
 **Examples:**
 
 ```bash
-bun run dev list-models               # List available models
-bun run dev launch --plan plan.md     # Launch an agent
-bun run dev list                      # Interactive list
+cloud-agent list-models               # List available models
+cloud-agent launch --plan plan.md     # Launch an agent
+cloud-agent list                      # Interactive list
 ```
 
 ## API Reference
@@ -141,4 +126,4 @@ bun run dev list                      # Interactive list
 
 ## License
 
-ISC
+MIT

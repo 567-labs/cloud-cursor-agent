@@ -17,6 +17,7 @@ import { executeBatchDelete } from "./batch-delete.js";
 import { executeMe } from "./me.js";
 import { executeListModels } from "./list-models.js";
 import { executeInstallAgentsMd } from "./install-agents-md.js";
+import { executeAgentsMd } from "./agents-md.js";
 
 /**
  * Register all CLI commands with a Commander.js program instance.
@@ -239,5 +240,15 @@ export function registerCommands(
         workingDir: options.dir,
         force: options.force || false,
       });
+    });
+
+  // Agents MD command
+  program
+    .command("agents-md")
+    .description(
+      "Print the AGENTS.md template content to append to your project's AGENTS.md file"
+    )
+    .action(async () => {
+      await executeAgentsMd(context);
     });
 }

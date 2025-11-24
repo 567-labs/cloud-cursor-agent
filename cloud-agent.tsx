@@ -81,13 +81,18 @@ async function main() {
     return;
   }
 
+  // Commands that don't require an API key
+  const noApiKeyCommands = ["agents-md"];
+  const firstArg = args.length > 0 && !args[0].startsWith("-") ? args[0] : null;
+  const needsApiKey = !firstArg || !noApiKeyCommands.includes(firstArg);
+
   const apiKey = process.env.CURSOR_API_KEY;
-  if (!apiKey) {
+  if (needsApiKey && !apiKey) {
     printApiKeyError();
     process.exit(1);
   }
 
-  const apiClient = new CloudAgentsApiClient(apiKey);
+  const apiClient = apiKey ? new CloudAgentsApiClient(apiKey) : (null as any);
   const workingDir = process.cwd();
 
   const context: CommandContext = {

@@ -1,10 +1,30 @@
 {
   "name": "cloud-agent",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "main": "index.js",
   "bin": {
     "cloud-agent": "./cli.js"
+  },
+  "files": [
+    "cli.js",
+    "src/**/*.js",
+    "README.md"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jxnl/cloud-cursor-agent.git"
+  },
+  "keywords": [
+    "cursor",
+    "ai",
+    "agents",
+    "cli",
+    "github",
+    "pr"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
   },
   "scripts": {
     "build": "bun run build-cli.ts",
@@ -18,8 +38,7 @@
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "prepare": "husky"
   },
-  "keywords": [],
-  "author": "",
+  "author": "jxnl",
   "license": "MIT",
   "description": "CLI tool for managing Cursor Cloud Agents",
   "dependencies": {
