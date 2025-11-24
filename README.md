@@ -14,13 +14,7 @@ Install globally from npm:
 npm install -g cloud-agent
 ```
 
-Or use without installing (requires [Bun](https://bun.sh)):
-
-```bash
-bunx cloud-agent launch --plan plan.md
-```
-
-**Prerequisites:** Node.js v18+ (for npm install) or [Bun](https://bun.sh) (for bunx)
+**Prerequisites:** Node.js v18+
 
 ## Setup
 
