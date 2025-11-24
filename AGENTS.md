@@ -1,311 +1,85 @@
-# Cloud Agents Documentation
+# Cloud Agents
 
-AI-powered assistants that work on GitHub repositories. They read code, make changes, create branches, and open pull requests.
+AI agents that work on GitHub repos. They read code, make changes, create branches, and open PRs. **You must review and merge the PRs yourself.**
 
 ## Quick Start
 
 ```bash
-# If API key is in .zshrc, source it first
-source ~/.zshrc
-
-# Or set it directly
 export CURSOR_API_KEY=your_api_key  # Get from https://cursor.com/settings
 
-cloud-agent launch --plan plan/bug-fixes/type-errors.md
+cloud-agent launch --plan plan.md
 # Output: https://cursor.com/agents?id=bc_abc123
 ```
 
-## Launch Command
-
-```bash
-cloud-agent launch --plan <file>
-```
-
-- `plan/vim-support/vim-keybindings.md`
-
-### Model Selection
-
-The CLI automatically selects the appropriate model based on plan content. Models:
-
-- `composer-1` (fast) - Simple tasks: bug fixes, small changes, typo corrections
-- `gpt-5.1-codex` (smart) - Complex tasks: refactors, architecture changes, multi-step tasks (>5 steps)
-
-Override with `--model`:
-
-```bash
-cloud-agent launch --plan plan.md --model composer-1
-cloud-agent launch --plan plan.md --model gpt-5.1-codex
-```
-
-### Heredoc Syntax
-
-Pass plan content directly via stdin:
+## Heredoc Syntax
 
 ```bash
 cloud-agent launch --plan - <<'EOF'
-refactor(AgentList): extract status order constant
+fix: update error message
 
-- Extract DEFAULT_STATUS_ORDER constant
-- Add getStatusDisplayOrder function
-- Consolidate footer hint text generation
+- Change text in src/auth/login.ts
 EOF
 ```
 
-## When to Launch Tasks
+## Model Selection
 
-**STRICT RULE:** Only launch tasks that are **strictly parallel** - meaning they modify completely different files with zero overlap or dependencies. When a plan is well-defined and ready, launch automatically without waiting for confirmation.
+Auto-selected based on plan content. Override with `--model`:
 
-## Planning Best Practices
+- `composer-1` (fast) - Simple tasks: bug fixes, typos
+- `gpt-5.1-codex` (smart) - Complex tasks: refactors, architecture changes
 
-### Parallelization Rules
+## Critical Rule: Parallelization
 
-**Key Principle:** Only strictly parallel tasks are allowed. If two plans modify the same file (even different parts), they **cannot** run in parallel - they will create merge conflicts.
+**Only launch tasks that modify completely different files.** If two plans touch the same file (even different parts), run them sequentially.
 
-**Strictly Parallelizable (ONLY these):**
+**Parallel OK:**
+- Plans that modify completely different files
+- Plans that create new files without modifying existing files
 
-- Plans that modify completely different files (no file overlap)
-- Plans that create new files without modifying any existing files
-- Plans with zero shared dependencies
-
-**NOT Parallelizable (common mistakes):**
-
-- Multiple plans modifying the same file (even different functions/lines)
-- Plans that modify different parts of the same file
-- Plans that create new files but also modify a shared existing file
-- Plans with any shared file dependencies
+**NOT OK:**
+- Multiple plans modifying the same file (even different functions)
 - Plans that depend on outputs from other plans
 
-### Organizing Large Refactorings
+### Same-File Refactorings
 
-For large refactorings that touch the same file, use a **phased approach** with sequential execution:
-
-**Phase 1: Extract Utilities** (must complete before Phase 2)
-
-- Extract utility functions to new files
-- Creates new files and modifies the original file (removes code, adds imports)
-- **Cannot run in parallel** with Phase 2 because both modify the same file
-- Example: Extract grouping + layout utilities together in one plan
-
-**Phase 2: Extract Components/Hooks** (after Phase 1 completes)
-
-- Extract components, hooks, and major structural changes
-- Depends on Phase 1 utilities being available
-- **Must wait** for Phase 1 to complete
-- Example: Extract rendering components + input handlers + data fetching together in one plan
-
-**Independent Tasks** (can run in parallel with phases)
-
-- Tasks that don't modify any shared files
-- Example: Splitting validation.ts into modules (completely independent, no file overlap)
-
-### Plan Structure
-
-**Good Plan:**
-
-```markdown
-# Refactor AgentList Phase 1: Extract Utilities
-
-## Goals
-
-- Move grouping functions to separate utility file
-- Move layout functions to separate utility file
-
-## Tasks
-
-- Create `src/utils/grouping.ts` (new file)
-- Create `src/utils/layout.ts` (new file)
-- Update `src/components/AgentList.tsx` (remove code, add imports)
-
-## Expected Outcome
-
-- AgentList.tsx reduced by ~180-200 lines
-- Utilities are reusable across components
-```
-
-**Bad Plan (causes conflicts):**
-
-```markdown
-# Extract Grouping Utilities
-
-- Modify AgentList.tsx
-
-# Extract Layout Utilities
-
-- Modify AgentList.tsx
-
-# Extract Rendering Components
-
-- Modify AgentList.tsx
-```
-
-These three plans conflict because they all modify the same file.
-
-### Combining Related Changes
-
-When multiple changes modify the same file, combine them into a single plan:
-
-**Instead of:**
-
-- Plan 1: Extract input handlers (modifies AgentList.tsx)
-- Plan 2: Extract data fetching (modifies AgentList.tsx)
-- Plan 3: Extract rendering (modifies AgentList.tsx)
-
-**Do this:**
-
-- Single Plan: Extract components and hooks (modifies AgentList.tsx once)
-
-### Dependency Management
-
-**Sequential Execution (required for same-file refactorings):**
-
-1. Launch Phase 1 plan (utilities) - wait for completion
-2. Launch Phase 2 plan (components/hooks) - after Phase 1 completes
-
-**Example:**
+Use a phased approach:
 
 ```bash
-# Phase 1: Single plan (modifies AgentList.tsx)
-cloud-agent launch --plan plan/refactor-phase1-utilities.md
+# Phase 1
+cloud-agent launch --plan phase1.md
+cloud-agent watch $AGENT_ID
 
-# Wait for Phase 1 to complete, then launch Phase 2
-# Phase 2: Single plan (modifies AgentList.tsx again)
-cloud-agent launch --plan plan/refactor-phase2-components.md
-
-# Independent task: Can run in parallel with either phase (no file overlap)
-cloud-agent launch --plan plan/split-validation-modules.md
+# Phase 2 (after Phase 1 completes)
+cloud-agent launch --plan phase2.md
 ```
 
-**Note:** Even if Phase 1 and Phase 2 modify different parts of AgentList.tsx, they cannot run in parallel because they modify the same file.
+## Commands
 
-### Plan Checklist
+### Watch
 
-Before launching multiple plans, verify **strictly**:
-
-- [ ] No two plans modify the same file (even different parts)
-- [ ] No file overlap between plans (check all files, not just main files)
-- [ ] Dependencies are clearly identified and sequenced
-- [ ] Related changes to the same file are combined into one plan
-- [ ] Phases that modify the same file are sequenced (not parallel)
-- [ ] Only truly independent tasks (zero file overlap) run in parallel
-
-**When in doubt:** Combine plans that touch the same file, or sequence them sequentially.
-
-## Quality of Life Commands
-
-### Watch Command
-
-The `watch` command blocks until an agent completes, making it perfect for chaining commands:
+Block until agent completes:
 
 ```bash
-# Launch and wait for completion
-AGENT_ID=$(cloud-agent launch --plan plan.md)
 cloud-agent watch $AGENT_ID --verbose
-
-# Use exit code to determine success
-cloud-agent watch $AGENT_ID && echo "Success!" || echo "Failed"
+cloud-agent watch $ID1 $ID2  # Multiple agents
 ```
 
-### Orchestration Workflow Example
+### Followup
 
-Combine `watch`, `conversation`, and `followup` for powerful orchestration:
+Send instructions to running agents:
 
 ```bash
-# Launch an agent
-AGENT_ID=$(cloud-agent launch --plan plan.md)
-
-# Watch until it completes (or check periodically)
-cloud-agent watch $AGENT_ID --verbose
-
-# Review the conversation to understand what was done
-cloud-agent conversation $AGENT_ID
-
-# Send follow-up if needed (only works if agent is still RUNNING)
-cloud-agent followup $AGENT_ID --messages "Please add tests for the new feature"
-
-# Check conversation again to see the response
-cloud-agent conversation $AGENT_ID
+cloud-agent followup <agent-id> --messages "Add tests"
+cloud-agent followup <agent-id> --messages @instructions.md
 ```
 
-This workflow is perfect for:
-
-- **Orchestration agents** that need to coordinate multiple downstream agents
-- **Code organization** where one agent reviews and guides another's work
-- **Iterative refinement** where follow-ups improve the initial work
-- **Automated workflows** that can parse conversation output and make decisions
-
-### Conversation Command
-
-View agent conversation history with status awareness:
+### Other Commands
 
 ```bash
-# Non-interactive mode: view conversation for specific agent
-cloud-agent conversation <agent-id>
-
-# Interactive mode: select agent from list (press 'c' on selected agent)
-cloud-agent conversation
-```
-
-The conversation command displays:
-
-- Agent status (RUNNING, FINISHED, etc.)
-- Agent ID
-- All user messages and agent responses
-- Plain text format suitable for parsing by scripts/AI
-
-### Followup Command
-
-Send follow-up instructions to running agents. Perfect for orchestration workflows where one agent needs to guide another:
-
-```bash
-# Send direct text follow-up
-cloud-agent followup <agent-id> --messages "Please add tests for the new feature"
-
-# Send follow-up from file
-cloud-agent followup <agent-id> --messages @plan.md
-
-# Send follow-up from stdin (heredoc)
-cloud-agent followup <agent-id> --messages - <<'EOF'
-Please review the changes and add documentation.
-EOF
-```
-
-The followup command:
-
-- Shows agent status before sending (only RUNNING/CREATING agents can receive follow-ups)
-- Validates agent state automatically
-- Supports multiple input methods (text, file, stdin)
-- Displays status in success message
-
-**Orchestration Use Case:** This is ideal for organizing code and allowing orchestration agents to send follow-up messages to downstream agents. An orchestration agent can:
-
-1. Launch multiple agents with `launch`
-2. Monitor their progress with `watch`
-3. Check their conversation with `conversation`
-4. Send targeted follow-ups with `followup` based on their work
-
-### Other Useful Commands
-
-- `cloud-agent open <agent-id>` - Open agent URL in browser
-- `cloud-agent delete <agent-id>` - Delete an agent
-- `cloud-agent cancel <agent-id>` - Cancel a running agent
-- `cloud-agent batch-delete --status FINISHED --force` - Delete multiple agents by status or repository
-
-### Batch Delete Command
-
-Delete multiple agents at once for cleanup:
-
-```bash
-# Preview what would be deleted
-cloud-agent batch-delete --status FINISHED --dry-run
-
-# Delete all finished agents
+cloud-agent conversation <agent-id>   # View conversation
+cloud-agent open <agent-id>           # Open in browser
+cloud-agent open <agent-id> --pr      # Open PR
+cloud-agent delete <agent-id>
+cloud-agent cancel <agent-id>
 cloud-agent batch-delete --status FINISHED --force
-
-# Delete all terminal status agents (FINISHED, FAILED, CANCELLED)
-cloud-agent batch-delete --status terminal --force
-
-# Delete all agents for current repository
-cloud-agent batch-delete --repo https://github.com/org/repo --force
 ```
-
-**Status options:** `FINISHED`, `FAILED`, `CANCELLED`, `CREATING`, `RUNNING`, or `terminal` (all terminal statuses)
