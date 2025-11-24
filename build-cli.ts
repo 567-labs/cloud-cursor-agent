@@ -50,7 +50,7 @@ async function buildCli() {
       format: "esm",
       minify: false,
       sourcemap: "external",
-      external: ["yoga-wasm-web", "react-devtools-core"],
+      external: ["yoga-wasm-web", "react-devtools-core", "ink"],
     });
 
     if (!result.success) {
