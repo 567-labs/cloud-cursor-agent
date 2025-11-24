@@ -8,7 +8,7 @@
   },
   "scripts": {
     "build": "bun run build-cli.ts",
-    "dev": "bun run cloud-agent.tsx",
+    "dev": "bun cloud-agent.tsx",
     "install:global": "npm pack && npm install -g cloud-agent-*.tgz && rm -f cloud-agent-*.tgz",
     "verify": "test -f cli.js && test -x cli.js && echo '✓ Build verification: cli.js exists and is executable' || echo '✗ Build verification failed'",
     "test": "bun test",

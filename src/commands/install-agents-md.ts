@@ -149,7 +149,7 @@ bun run cloud-agent.tsx launch --plan <plan-file>
     }
 
     if (commandHasOption(program, "launch", "model")) {
-      content += `**Optional:** \`--model <name>\` - Override auto-selected model (composer-1 or gpt-5.1-codex)
+      content += `**Optional:** \`--model <name>\` - Override auto-selected model (composer-1 or claude-4.5-opus-high)
 
 `;
     }

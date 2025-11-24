@@ -44,7 +44,7 @@ EOF
 
 **Options:** `--repo`, `--ref`, `--branch`, `--model`, `--no-auto-pr`, `--verbose`
 
-**Models:** Auto-selected based on plan complexity. `composer-1` (fast) for simple tasks, `gpt-5.1-codex` (smart) for complex tasks. Override with `--model`.
+**Models:** Auto-selected based on plan complexity. `composer-1` (fast) for simple tasks, `claude-4.5-opus-high` (smart) for complex tasks. Override with `--model`.
 
 ### Watch
 
@@ -120,11 +120,19 @@ cloud-agent followup $AGENT_ID --messages "Add tests"
 ## Development
 
 ```bash
-bun install          # Install dependencies
-bun run dev          # Development mode
-bun run build        # Build
-bun test             # Run tests
-bun run format       # Format code
+bun install                           # Install dependencies
+bun run dev <command>                 # Run in development mode
+bun run build                         # Build CLI
+bun test                              # Run tests
+bun run format                        # Format code
+```
+
+**Examples:**
+
+```bash
+bun run dev list-models               # List available models
+bun run dev launch --plan plan.md     # Launch an agent
+bun run dev list                      # Interactive list
 ```
 
 ## API Reference

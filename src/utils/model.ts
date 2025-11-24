@@ -8,7 +8,7 @@
  */
 export const MODELS = {
   FAST: "composer-1",
-  SMART: "gpt-5.1-codex",
+  SMART: "claude-4.5-opus-high",
 } as const;
 
 /**
@@ -100,7 +100,7 @@ const SIMPLE_KEYWORDS = [
  *
  * Uses heuristics based on keywords and plan complexity:
  * - Fast model (composer-1): Simple tasks like bug fixes, small changes, typo fixes
- * - Smart model (gpt-5.1-codex): Complex tasks like refactors, architecture changes, multi-step tasks
+ * - Smart model (claude-4.5-opus-high): Complex tasks like refactors, architecture changes, multi-step tasks
  *
  * @param {string} planContent - Markdown or plain text plan describing the requested work.
  * @returns {string} The recommended model name from {@link MODELS}.

@@ -26,7 +26,7 @@ EOF
 Auto-selected based on plan content. Override with `--model`:
 
 - `composer-1` (fast) - Simple tasks: bug fixes, typos
-- `gpt-5.1-codex` (smart) - Complex tasks: refactors, architecture changes
+- `claude-4.5-opus-high` (smart) - Complex tasks: refactors, architecture changes
 
 ## Critical Rule: Parallelization
 

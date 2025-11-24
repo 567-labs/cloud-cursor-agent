@@ -53,7 +53,7 @@ export function registerCommands(
     )
     .option(
       "--model <name>",
-      "Model to use (composer-1 or gpt-5.1-codex). If not provided, model is auto-selected based on plan"
+      "Model to use (composer-1 or claude-4.5-opus-high). If not provided, model is auto-selected based on plan"
     )
     .option("--verbose, -v", "Show verbose output")
     .option("--dir <path>", "Working directory for git detection")
